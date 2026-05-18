@@ -1,0 +1,253 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import Header from '../components/Header';
+import BottomNav from '../components/BottomNav';
+import { AlertTriangle } from 'lucide-react';
+
+const RECIPES = [
+  {
+    id: 'r1',
+    name: '돼지고기 김치찌개',
+    ingredients: '김치 1/4포기, 돼지고기 200g, 두부 1/2모, 대파 1대, 마늘 1T, 고춧가루 2T, 국간장 1T',
+    matchIngredients: ['김치', '돼지고기', '삼겹살', '두부', '대파', '파', '마늘', '고춧가루', '국간장', '간장'],
+    recipe: [
+      '1. 냄비에 식용유를 약간 두르고 돼지고기와 다진 마늘을 넣고 볶습니다.',
+      '2. 돼지고기 표면이 익으면 썰어둔 김치를 넣고 함께 충분히 볶아줍니다.',
+      '3. 물 또는 육수를 재료가 잠길 정도로 붓고 끓입니다.',
+      '4. 끓어오르면 두부, 대파를 썰어 넣고 고춧가루와 국간장으로 간을 하여 한소끔 더 끓여 완성합니다.'
+    ]
+  },
+  {
+    id: 'r2',
+    name: '차돌 된장찌개',
+    ingredients: '된장 2T, 두부 1/2모, 감자 1개, 양파 1/2개, 대파 1/2대, 마늘 1T, 차돌박이 100g',
+    matchIngredients: ['된장', '두부', '감자', '양파', '대파', '파', '마늘', '차돌박이', '고기', '돼지고기'],
+    recipe: [
+      '1. 뚝배기에 차돌박이를 넣고 살짝 볶아 기름을 냅니다.',
+      '2. 물을 붓고 된장을 잘 풀어준 뒤, 썰어둔 감자와 양파를 먼저 넣고 끓입니다.',
+      '3. 재료가 익으면 두부와 다진 마늘을 넣습니다.',
+      '4. 송송 썬 대파를 넣고 한소끔 더 끓여 완성합니다.'
+    ]
+  },
+  {
+    id: 'r3',
+    name: '매콤 제육볶음',
+    ingredients: '돼지고기 300g, 양파 1/2개, 대파 1대, 고추장 2T, 고춧가루 1T, 간장 1T, 설탕 1T, 마늘 1T, 참기름 1T',
+    matchIngredients: ['돼지고기', '삼겹살', '고기', '양파', '대파', '파', '고추장', '고춧가루', '간장', '설탕', '마늘', '참기름'],
+    recipe: [
+      '1. 돼지고기를 먹기 좋은 크기로 썬 후 고추장, 고춧가루, 간장, 설탕, 다진 마늘을 섞어 양념장을 만들어 버무려 둡니다.',
+      '2. 양파와 대파는 큼직하게 썰어 준비합니다.',
+      '3. 달궈진 팬에 양념한 고기를 먼저 넣고 중불에서 볶아줍니다.',
+      '4. 고기가 거의 익어가면 양파와 대파를 넣고 볶다가 마지막에 참기름을 둘러 마무리합니다.'
+    ]
+  },
+  {
+    id: 'r4',
+    name: '파송송 계란말이',
+    ingredients: '계란 4알, 대파 1/2대, 소금 1/2t, 식용유 2T, 참기름 1t',
+    matchIngredients: ['계란', '달걀', '대파', '파', '소금', '식용유', '참기름'],
+    recipe: [
+      '1. 볼에 계란 4알을 깨뜨려 넣고 소금을 가볍게 넣어 잘 풀어줍니다.',
+      '2. 대파를 아주 잘게 다져 계란물에 섞어줍니다.',
+      '3. 달궈진 팬에 식용유를 두르고 계란물종류를 조금씩 부어가며 얇게 폅니다.',
+      '4. 가장자리가 익기 시작하면 끝에서부터 돌돌 말아가며 계란말이를 완성합니다.'
+    ]
+  },
+  {
+    id: 'r5',
+    name: '국물 떡볶이',
+    ingredients: '떡볶이 떡 200g, 어묵 2장, 대파 1대, 고추장 2T, 설탕 1.5T, 간장 1T, 물 2컵',
+    matchIngredients: ['떡', '어묵', '대파', '파', '고추장', '설탕', '간장'],
+    recipe: [
+      '1. 냄비에 물 2컵을 붓고 고추장, 설탕, 간장을 잘 풀어 소스를 끓입니다.',
+      '2. 끓어오르면 씻어둔 떡과 한 입 크기로 썬 어묵을 넣습니다.',
+      '3. 떡이 말랑해지고 양념이 적당히 졸아들 때까지 끓여줍니다.',
+      '4. 마지막으로 대파를 어긋 썰어 넣고 조금 더 끓여 완성합니다.'
+    ]
+  },
+  {
+    id: 'r6',
+    name: '백종원 간장계란밥',
+    ingredients: '햇반 1개, 계란 1알, 간장 1T, 참기름 1T, 식용유 1T',
+    matchIngredients: ['햇반', '밥', '계란', '달걀', '간장', '참기름', '식용유'],
+    recipe: [
+      '1. 팬에 식용유를 두르고 계란 1알을 깨서 서니사이드업 프라이를 만들어줍니다.',
+      '2. 따뜻하게 데운 햇반을 그릇에 예쁘게 담아줍니다.',
+      '3. 밥 위에 계란 프라이를 얹고, 간장 1T와 고소한 참기름 1T를 뿌려줍니다.',
+      '4. 기호에 따라 으깨어가며 잘 비벼 맛있게 먹습니다.'
+    ]
+  }
+];
+
+const getFoodIcon = (name, category) => {
+  const n = name.toLowerCase();
+  if (n.includes('삼겹살') || n.includes('고기') || n.includes('목살') || n.includes('소고기') || n.includes('닭고기')) return '🥩';
+  if (n.includes('마늘') || n.includes('양파') || n.includes('파') || n.includes('감자') || n.includes('당근')) return '🧄';
+  if (n.includes('상추') || n.includes('배추') || n.includes('깻잎') || n.includes('샐러드') || n.includes('야채')) return '🥬';
+  if (n.includes('햇반') || n.includes('밥') || n.includes('쌀')) return '🍚';
+  if (n.includes('우유') || n.includes('요거트') || n.includes('치즈')) return '🥛';
+  if (n.includes('계란') || n.includes('달걀') || n.includes('알')) return '🥚';
+  if (n.includes('사과') || n.includes('바나나') || n.includes('과일')) return '🍎';
+  if (n.includes('만두') || n.includes('피자') || n.includes('튀김')) return '🥟';
+  
+  if (category === '육류') return '🥩';
+  if (category === '채소') return '🥦';
+  if (category === '유제품') return '🥛';
+  if (category === '냉동식품') return '❄️';
+  if (category === '소스/양념') return '🧂';
+  return '📦';
+};
+
+const Home = () => {
+  const navigate = useNavigate();
+  const [expiringItems, setExpiringItems] = useState([]);
+  const [recommendedRecipes, setRecommendedRecipes] = useState([]);
+
+  useEffect(() => {
+    let stored = localStorage.getItem('ingredients');
+    let list = [];
+    if (!stored) {
+      list = [];
+      localStorage.setItem('ingredients', JSON.stringify([]));
+    } else {
+      list = JSON.parse(stored);
+    }
+
+    // Filter expiring items (within 3 days)
+    const today = new Date();
+    today.setHours(0,0,0,0);
+
+    const expiring = list.filter(item => {
+      const exp = new Date(item.expDate);
+      exp.setHours(0,0,0,0);
+      const diffTime = exp - today;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays <= 3;
+    });
+    setExpiringItems(expiring);
+
+    // Calculate recipe matching count
+    const ownedNames = list.map(item => item.name.toLowerCase());
+    
+    const matched = RECIPES.map(recipe => {
+      const matchCount = recipe.matchIngredients.filter(m => 
+        ownedNames.some(name => name.includes(m.toLowerCase()) || m.toLowerCase().includes(name))
+      ).length;
+      return { ...recipe, matchCount };
+    });
+
+    // Sort by matchCount desc
+    matched.sort((a, b) => b.matchCount - a.matchCount);
+
+    // Take top 2 recommendations
+    setRecommendedRecipes(matched.slice(0, 2));
+  }, []);
+
+  return (
+    <div className="page-container">
+      <Header title="우리집 냉장고 홈" />
+      <div className="content" style={{ paddingBottom: '80px', paddingTop: '10px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '24px', marginTop: '10px' }}>
+          <img src="/favicon.svg" alt="우리집 냉장고 로고" width="50" height="50" style={{ marginBottom: '8px' }} />
+        </div>
+
+        <h2 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-black)' }}>
+          <AlertTriangle size={18} color="red" /> 유통기한 임박 식재료
+        </h2>
+
+        {expiringItems.length === 0 ? (
+          <div style={{ padding: '24px 20px', background: '#f9fafb', border: '1px solid var(--gray-200)', borderRadius: '12px', color: 'var(--gray-500)', textAlign: 'center', fontSize: '13px', marginBottom: '32px' }}>
+            유통기한 임박 식재료가 없습니다.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '32px' }}>
+            {expiringItems.map(item => {
+              const diffDays = Math.ceil((new Date(item.expDate) - new Date()) / (1000 * 60 * 60 * 24));
+              const isExpired = diffDays < 0;
+              return (
+                <div 
+                  key={item.id} 
+                  style={{ 
+                    padding: '12px 14px', 
+                    background: isExpired ? '#fff5f5' : '#fff', 
+                    border: isExpired ? '1px solid #feb2b2' : '1px solid var(--gray-200)', 
+                    borderRadius: '12px', 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.01)'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    {/* Food Emoji Icon */}
+                    <div style={{ fontSize: '20px', background: '#f3f4f6', width: '36px', height: '36px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {getFoodIcon(item.name, item.category)}
+                    </div>
+                    
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontWeight: 'bold', color: isExpired ? '#c53030' : 'var(--text-black)', fontSize: '14px' }}>{item.name}</span>
+                        <span style={{ fontSize: '9px', background: isExpired ? '#fed7d7' : '#e0f2ec', color: isExpired ? '#9b2c2c' : 'var(--primary-color)', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>{item.storageLocation}</span>
+                      </div>
+                      <div style={{ fontSize: '11px', color: isExpired ? '#e53e3e' : 'var(--gray-500)', marginTop: '2px' }}>
+                        유통기한: {item.expDate.split('T')[0]} 
+                        <span style={{ fontWeight: 'bold', marginLeft: '6px', color: isExpired ? '#e53e3e' : 'red' }}>
+                          {isExpired ? '유통기한 만료!' : `(${diffDays}일 남음)`}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        
+        <h2 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '16px', color: 'var(--text-black)' }}>오늘의 추천 요리</h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {recommendedRecipes.map(recipe => (
+            <div 
+              key={recipe.id} 
+              onClick={() => navigate('/cooking', { state: { openRecipeId: recipe.id } })}
+              style={{
+                padding: '16px',
+                background: '#FFFFFF',
+                border: '1px solid var(--gray-200)',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+              }}
+            >
+              <div>
+                <h3 style={{ fontWeight: 'bold', fontSize: '15px', color: 'var(--text-black)', marginBottom: '4px' }}>
+                  {recipe.name}
+                </h3>
+                <p style={{ fontSize: '12px', color: 'var(--gray-500)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '300px' }}>
+                  재료: {recipe.ingredients}
+                </p>
+              </div>
+              <div style={{ 
+                fontSize: '11px', 
+                background: recipe.matchCount > 0 ? '#e0f2ec' : '#f3f4f6', 
+                color: recipe.matchCount > 0 ? 'var(--primary-color)' : 'var(--gray-500)', 
+                padding: '4px 8px', 
+                borderRadius: '6px', 
+                fontWeight: 'bold',
+                flexShrink: 0
+              }}>
+                재료 {recipe.matchCount}개 보유
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <BottomNav />
+    </div>
+  );
+};
+
+export default Home;
