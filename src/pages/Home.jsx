@@ -106,10 +106,7 @@ const Home = () => {
   useEffect(() => {
     let stored = localStorage.getItem('ingredients');
     let list = [];
-    if (!stored) {
-      list = [];
-      localStorage.setItem('ingredients', JSON.stringify([]));
-    } else {
+    if (stored) {
       list = JSON.parse(stored);
     }
 
@@ -122,7 +119,7 @@ const Home = () => {
       exp.setHours(0,0,0,0);
       const diffTime = exp - today;
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      return diffDays <= 3;
+      return diffDays <= 7;
     });
     setExpiringItems(expiring);
 

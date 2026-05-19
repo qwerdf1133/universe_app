@@ -15,20 +15,26 @@ const getAutoExpiryDate = (name, pDateStr) => {
   const n = name.trim().toLowerCase();
   let days = 30; // default generic fallback
 
-  if (n.includes('삼겹살') || n.includes('고기') || n.includes('목살') || n.includes('소고기') || n.includes('닭고기') || n.includes('육류')) {
-    days = 5;
+  if (n.includes('우유') || n.includes('요거트') || n.includes('치즈') || n.includes('유제품')) {
+    days = 3; // 우유 3일
+  } else if (n.includes('계란') || n.includes('달걀') || n.includes('알')) {
+    days = 7; // 계란 7일
+  } else if (n.includes('생선') || n.includes('해산물') || n.includes('오징어') || n.includes('고등어') || n.includes('새우')) {
+    days = 2; // 생선 2일
+  } else if (n.includes('삼겹살') || n.includes('고기') || n.includes('목살') || n.includes('소고기') || n.includes('닭고기') || n.includes('육류')) {
+    days = 3; // 고기 3일
+  } else if (n.includes('통조림') || n.includes('캔') || n.includes('참치캔') || n.includes('스팸')) {
+    days = 730; // 캔 2년
+  } else if (n.includes('라면') || n.includes('면')) {
+    days = 365; // 라면 1년
+  } else if (n.includes('소스') || n.includes('간장') || n.includes('쌈장') || n.includes('양념') || n.includes('고추장') || n.includes('된장')) {
+    days = 180; // 소스 6개월
   } else if (n.includes('상추') || n.includes('깻잎') || n.includes('시금치')) {
     days = 4;
   } else if (n.includes('마늘') || n.includes('양파') || n.includes('파') || n.includes('감자') || n.includes('당근') || n.includes('채소')) {
     days = 7;
-  } else if (n.includes('우유') || n.includes('요거트') || n.includes('치즈') || n.includes('유제품')) {
-    days = 14;
   } else if (n.includes('만두') || n.includes('피자') || n.includes('튀김') || n.includes('냉동')) {
     days = 180;
-  } else if (n.includes('소스') || n.includes('간장') || n.includes('쌈장') || n.includes('양념')) {
-    days = 365;
-  } else if (n.includes('계란') || n.includes('달걀') || n.includes('알')) {
-    days = 14;
   }
 
   pDate.setDate(pDate.getDate() + days);

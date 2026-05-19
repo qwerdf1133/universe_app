@@ -3,7 +3,8 @@ import { useLocation } from 'react-router-dom';
 import Header from '../components/Header';
 import BottomNav from '../components/BottomNav';
 import { getPostposition } from '../utils/korean';
-import { Flame, Check, X, AlertCircle, ArrowLeft, ArrowRight, BookOpen, Utensils, HelpCircle } from 'lucide-react';
+import { Flame, Check, X, AlertCircle, ArrowLeft, ArrowRight, BookOpen, Utensils, HelpCircle, Search } from 'lucide-react';
+import { fetchRecipes } from '../utils/api';
 
 const RECIPES = [
   {
@@ -264,6 +265,13 @@ const Cooking = () => {
   const location = useLocation();
   const [ingredients, setIngredients] = useState([]);
   const [recipesList, setRecipesList] = useState([]);
+  const [allRecipes, setAllRecipes] = useState([]);
+  
+  // Search & Pagination states
+  const [showMore, setShowMore] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  const [isFetching, setIsFetching] = useState(false);
   
   // Confirmation Modal states
   const [pendingRecipe, setPendingRecipe] = useState(null);
@@ -278,16 +286,32 @@ const Cooking = () => {
   const [usageChecklist, setUsageChecklist] = useState({}); // { ingredientId: true/false }
   const [cookingResult, setCookingResult] = useState(null); // { name: '', leftovers: [], used: [] }
 
-  const loadData = () => {
+  const loadData = async () => {
+    setIsFetching(true);
     let stored = localStorage.getItem('ingredients');
     let list = stored ? JSON.parse(stored) : [];
     setIngredients(list);
 
-    const ownedNames = list.map(item => item.name.toLowerCase());
+    const today = new Date();
+    today.setHours(0,0,0,0);
     
+    const ownedNames = list.map(item => item.name.toLowerCase());
+    const expiringNames = list.filter(item => {
+      const exp = new Date(item.expDate);
+      exp.setHours(0,0,0,0);
+      const diffDays = Math.ceil((exp - today) / (1000 * 60 * 60 * 24));
+      return diffDays <= 7;
+    }).map(item => item.name.toLowerCase());
+
+    // Fetch recipes from API (or fallback to RECIPES)
+    let fetched = await fetchRecipes(1, 30);
+    if (!fetched || fetched.length === 0) {
+      fetched = RECIPES; // fallback to dummy
+    }
+    setAllRecipes(fetched);
+
     // Process recipe matching
-    const matched = RECIPES.map(recipe => {
-      // Find all matching owned items
+    const matched = fetched.map(recipe => {
       const matchedOwnedItems = list.filter(item => 
         recipe.matchIngredients.some(m => 
           item.name.toLowerCase().includes(m.toLowerCase()) || m.toLowerCase().includes(item.name.toLowerCase())
@@ -295,25 +319,43 @@ const Cooking = () => {
       );
 
       // Score matching
-      const matchCount = recipe.matchIngredients.filter(m => 
-        ownedNames.some(name => name.includes(m.toLowerCase()) || m.toLowerCase().includes(name))
-      ).length;
+      let matchCount = 0;
+      let expiringBonus = 0;
+      
+      recipe.matchIngredients.forEach(m => {
+        if (ownedNames.some(name => name.includes(m.toLowerCase()) || m.toLowerCase().includes(name))) {
+          matchCount++;
+          // Add extra weight if matched ingredient is expiring soon
+          if (expiringNames.some(name => name.includes(m.toLowerCase()) || m.toLowerCase().includes(name))) {
+            expiringBonus += 10; 
+          }
+        }
+      });
 
       return {
         ...recipe,
         matchCount,
+        sortScore: matchCount + expiringBonus,
         matchedOwnedItems
       };
     });
 
-    // Sort by matchCount desc
-    matched.sort((a, b) => b.matchCount - a.matchCount);
+    // Sort by sortScore desc
+    matched.sort((a, b) => b.sortScore - a.sortScore);
     setRecipesList(matched);
+    setIsFetching(false);
   };
 
   useEffect(() => {
     loadData();
   }, []);
+
+  // Filter recipes based on search term
+  const displayedRecipes = searchTerm 
+    ? allRecipes.filter(r => r.name.toLowerCase().includes(searchTerm.toLowerCase()) || r.ingredients.toLowerCase().includes(searchTerm.toLowerCase()))
+    : recipesList;
+
+  const visibleCount = showMore ? displayedRecipes.length : 4;
 
   // Handle auto-opening of recipe from Home screen redirection
   useEffect(() => {
@@ -416,18 +458,30 @@ const Cooking = () => {
       <Header title="추천 요리 레시피" />
       <div className="content" style={{ paddingBottom: '80px', paddingTop: '10px' }}>
         
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', marginTop: '10px' }}>
-          <Flame size={20} color="var(--primary-color)" />
-          <h2 style={{ fontSize: '16px', fontWeight: 'bold', margin: 0, color: 'var(--text-black)' }}>내 맞춤 추천 요리</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', marginTop: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Flame size={20} color="var(--primary-color)" />
+            <h2 style={{ fontSize: '16px', fontWeight: 'bold', margin: 0, color: 'var(--text-black)' }}>
+              {searchTerm ? `'${searchTerm}' 검색 결과` : '내 맞춤 추천 요리'}
+            </h2>
+          </div>
+          <button 
+            style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', color: 'var(--primary-color)', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer' }}
+            onClick={() => setIsSearchModalOpen(true)}
+          >
+            <Search size={16} /> 요리 검색
+          </button>
         </div>
 
         <p style={{ fontSize: '12px', color: 'var(--gray-500)', marginTop: '0px', marginBottom: '20px' }}>
-          내 냉장고 속 식재료와 매칭률이 높은 순서대로 레시피를 추천합니다.
+          {searchTerm ? '검색어와 관련된 레시피를 확인하세요.' : '내 냉장고 속 식재료와 매칭률이 높은 순서대로 레시피를 추천합니다. (유통기한 임박 재료 우선)'}
         </p>
 
-        {/* Premium List Cards */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          {recipesList.slice(0, 4).map((recipe) => {
+        {isFetching ? (
+          <div style={{ textAlign: 'center', color: 'var(--gray-500)', padding: '20px' }}>레시피를 불러오는 중입니다...</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {displayedRecipes.slice(0, visibleCount).map((recipe) => {
             const hasMatched = recipe.matchCount > 0;
             
             // Set difficulty badge color
@@ -471,9 +525,14 @@ const Cooking = () => {
                   justifyContent: 'center',
                   fontSize: '32px',
                   flexShrink: 0,
-                  boxShadow: '0 3px 6px rgba(0,0,0,0.05)'
+                  boxShadow: '0 3px 6px rgba(0,0,0,0.05)',
+                  overflow: 'hidden'
                 }}>
-                  {recipe.emoji}
+                  {recipe.mainImage ? (
+                    <img src={recipe.mainImage} alt={recipe.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    recipe.emoji
+                  )}
                 </div>
 
                 {/* Right Side: Details */}
@@ -522,8 +581,63 @@ const Cooking = () => {
               </div>
             );
           })}
+          
+          {!searchTerm && displayedRecipes.length > 4 && (
+            <button 
+              className="btn-primary" 
+              style={{ background: '#f3f4f6', color: 'var(--gray-600)', border: 'none', marginTop: '8px' }}
+              onClick={() => setShowMore(!showMore)}
+            >
+              {showMore ? '접기' : '더보기'}
+            </button>
+          )}
         </div>
+      )}
       </div>
+
+      {/* ==================== 0. SEARCH MODAL ==================== */}
+      {isSearchModalOpen && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: '#fff', zIndex: 9999,
+          display: 'flex', flexDirection: 'column',
+          animation: 'slideUp 0.2s ease-out'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--gray-200)' }}>
+            <button onClick={() => setIsSearchModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', marginRight: '16px' }}>
+              <ArrowLeft size={24} color="var(--text-black)" />
+            </button>
+            <div style={{ flex: 1, position: 'relative' }}>
+              <input 
+                type="text" 
+                placeholder="어떤 요리를 찾으시나요?" 
+                className="input-field" 
+                autoFocus
+                style={{ width: '100%', paddingRight: '40px' }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    setSearchTerm(e.target.value);
+                    setIsSearchModalOpen(false);
+                    setShowMore(true);
+                  }
+                }}
+                id="search-input"
+              />
+              <button 
+                onClick={() => {
+                  const val = document.getElementById('search-input').value;
+                  setSearchTerm(val);
+                  setIsSearchModalOpen(false);
+                  setShowMore(true);
+                }}
+                style={{ position: 'absolute', right: '12px', top: '10px', background: 'none', border: 'none', cursor: 'pointer' }}
+              >
+                <Search size={20} color="var(--primary-color)" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ==================== 1. CONFIRMATION POPUP ("~ 만들까요?") ==================== */}
       {pendingRecipe && (
@@ -904,10 +1018,14 @@ const Cooking = () => {
                               단계 {activeStep} / {selectedRecipe.detailedSteps.length}
                             </div>
 
-                            {/* Centered Large Action Graphic Icon */}
-                            <div style={{ fontSize: '56px', animation: 'pulse 2s infinite' }}>
-                              {stepInfo.actionIcon}
-                            </div>
+                            {/* Centered Large Action Graphic Icon / Image */}
+                            {stepInfo.actionImage ? (
+                              <img src={stepInfo.actionImage} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="조리 과정" />
+                            ) : (
+                              <div style={{ fontSize: '56px', animation: 'pulse 2s infinite' }}>
+                                {stepInfo.actionIcon}
+                              </div>
+                            )}
 
                             {/* Action badge overlay */}
                             <div style={{

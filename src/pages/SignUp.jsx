@@ -83,6 +83,11 @@ const SignUp = () => {
     // Save current user session
     localStorage.setItem('currentUser', JSON.stringify({ id, nickname }));
 
+    // Clear any existing dummy data for the new user
+    localStorage.removeItem('ingredients');
+    localStorage.removeItem('shopping-list');
+    localStorage.removeItem('member-requests');
+
     // Show Household Modal
     setShowHouseholdModal(true);
   };

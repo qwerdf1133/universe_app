@@ -58,7 +58,7 @@ const SettingsModal = ({ isOpen, onClose }) => {
 
     // Dispatch custom event to notify all listening headers to refresh
     window.dispatchEvent(new Event('profileUpdated'));
-    alert('프로필 설정이 정상적으로 저장되었습니다.');
+    alert('변경이 완료되었습니다!');
   };
 
   // Handle Household Code Copy
