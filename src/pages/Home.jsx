@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import BottomNav from '../components/BottomNav';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Trash2 } from 'lucide-react';
 
 const RECIPES = [
   {
@@ -103,6 +103,42 @@ const Home = () => {
   const [expiringItems, setExpiringItems] = useState([]);
   const [recommendedRecipes, setRecommendedRecipes] = useState([]);
 
+  const handleDeleteExpired = () => {
+    let stored = localStorage.getItem('ingredients');
+    if (!stored) return;
+    let list = JSON.parse(stored);
+
+    const today = new Date();
+    today.setHours(0,0,0,0);
+
+    const updated = list.filter(item => {
+      const diffDays = Math.ceil((new Date(item.expDate) - new Date()) / (1000 * 60 * 60 * 24));
+      return diffDays >= 0;
+    });
+
+    localStorage.setItem('ingredients', JSON.stringify(updated));
+    alert('유통기한이 만료된 식재료가 삭제되었습니다.');
+
+    const expiring = updated.filter(item => {
+      const exp = new Date(item.expDate);
+      exp.setHours(0,0,0,0);
+      const diffTime = exp - today;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays <= 7;
+    });
+    setExpiringItems(expiring);
+
+    const ownedNames = updated.map(item => item.name.toLowerCase());
+    const matched = RECIPES.map(recipe => {
+      const matchCount = recipe.matchIngredients.filter(m => 
+        ownedNames.some(name => name.includes(m.toLowerCase()) || m.toLowerCase().includes(name))
+      ).length;
+      return { ...recipe, matchCount };
+    });
+    matched.sort((a, b) => b.matchCount - a.matchCount);
+    setRecommendedRecipes(matched.slice(0, 2));
+  };
+
   useEffect(() => {
     let stored = localStorage.getItem('ingredients');
     let list = [];
@@ -197,6 +233,39 @@ const Home = () => {
                 </div>
               );
             })}
+
+            {/* Expired Ingredient Delete Button */}
+            {expiringItems.some(item => Math.ceil((new Date(item.expDate) - new Date()) / (1000 * 60 * 60 * 24)) < 0) && (
+              <button
+                onClick={handleDeleteExpired}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  width: '100%',
+                  padding: '12px',
+                  background: '#fff5f5',
+                  border: '1px solid #feb2b2',
+                  borderRadius: '12px',
+                  color: '#e53e3e',
+                  fontWeight: 'bold',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  marginTop: '6px'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#fed7d7';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = '#fff5f5';
+                }}
+              >
+                <Trash2 size={16} color="#e53e3e" />
+                유통기한 만료 식재료 삭제하기
+              </button>
+            )}
           </div>
         )}
         

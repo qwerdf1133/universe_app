@@ -713,16 +713,16 @@ const Cooking = () => {
           backgroundColor: 'rgba(0,0,0,0.6)',
           zIndex: 1000,
           display: 'flex',
-          alignItems: 'flex-end',
+          alignItems: 'stretch',
           animation: 'fadeIn 0.2s ease-out'
         }}>
           <div style={{
             backgroundColor: '#FFFFFF',
             width: '100%',
-            maxHeight: '94%',
-            borderTopLeftRadius: '24px',
-            borderTopRightRadius: '24px',
-            padding: '24px',
+            height: '100%',
+            maxHeight: '100%',
+            borderRadius: '0',
+            padding: '24px 20px',
             boxSizing: 'border-box',
             display: 'flex',
             flexDirection: 'column',
@@ -752,124 +752,70 @@ const Cooking = () => {
               </button>
             </div>
 
-            {/* A. If cookingResult exists, show Final Congrats page */}
-            {cookingResult ? (
+            {showChecklist ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '16px 0', textAlign: 'center' }}>
                 <div style={{ fontSize: '64px', animation: 'bounce 1s infinite' }}>🎉</div>
                 
-                <h3 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--primary-color)', margin: 0, lineHeight: '1.4' }}>
-                  {getPostposition(cookingResult.name, '을', '를')}<br />성공적으로 만들었어요!
+                <h3 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--primary-color)', margin: 0, lineHeight: '1.4' }}>
+                  {getPostposition(selectedRecipe.name, '을', '를')}<br />성공적으로 만들었어요!
                 </h3>
                 
                 <p style={{ fontSize: '12px', color: 'var(--gray-500)', marginTop: '-8px' }}>
-                  오늘의 식사를 축하합니다! 냉장고 재료가 실시간 차감되었습니다.
+                  요리에 사용해서 냉장고에서 차감할 재료를 확인해 주세요.<br />
+                  [확인 및 삭제] 버튼을 클릭하면 체크된 식재료가 삭제됩니다.
                 </p>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: '#f8fafc', padding: '16px', borderRadius: '16px', textAlign: 'left', border: '1px solid var(--gray-200)' }}>
                   <div>
-                    <h4 style={{ fontSize: '12px', fontWeight: 'bold', color: '#ef4444', margin: '0 0 6px 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      🔥 사용해서 완전히 비운 재료
+                    <h4 style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--primary-color)', margin: '0 0 10px 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      📝 사용한 식재료 확인
                     </h4>
-                    {cookingResult.used.length === 0 ? (
-                      <span style={{ fontSize: '11px', color: 'var(--gray-400)' }}>없음</span>
+                    {selectedRecipe.matchedOwnedItems.length === 0 ? (
+                      <span style={{ fontSize: '11px', color: 'var(--gray-400)' }}>매칭된 냉장고 식재료 없음</span>
                     ) : (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                        {cookingResult.used.map((name, i) => (
-                          <span key={i} style={{ fontSize: '10px', background: '#fef2f2', color: '#ef4444', padding: '3px 8px', borderRadius: '6px', fontWeight: 'bold' }}>
-                            {name}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div style={{ borderTop: '1px dashed var(--gray-200)', paddingTop: '10px' }}>
-                    <h4 style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--primary-color)', margin: '0 0 6px 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      🥬 아직 냉장고에 남아있는 재료
-                    </h4>
-                    {cookingResult.leftovers.length === 0 ? (
-                      <span style={{ fontSize: '11px', color: 'var(--gray-400)' }}>없음</span>
-                    ) : (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                        {cookingResult.leftovers.map((name, i) => (
-                          <span key={i} style={{ fontSize: '10px', background: '#e0f2ec', color: 'var(--primary-color)', padding: '3px 8px', borderRadius: '6px', fontWeight: 'bold' }}>
-                            {name}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <button 
-                  className="btn-primary" 
-                  style={{ margin: 0, marginTop: '8px' }}
-                  onClick={handleCloseAll}
-                >
-                  맛있게 먹을래요!
-                </button>
-              </div>
-            ) 
-            // B. Else if showChecklist is true, show Checklist page
-            : showChecklist ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div>
-                  <h4 style={{ fontSize: '14px', fontWeight: 'bold', color: 'var(--text-black)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    📝 요리 완료 재료 정산 체크리스트
-                  </h4>
-                  <p style={{ fontSize: '11px', color: 'var(--gray-500)', margin: '0 0 14px 0' }}>
-                    조리를 진행하면서 **완전히 소진한 재료**를 체크해 주세요.<br />
-                    체크된 재료는 내 냉장고 식재료 목록에서 자동으로 삭제됩니다.
-                  </p>
-
-                  {selectedRecipe.matchedOwnedItems.length === 0 ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#fffbeb', border: '1px solid #fef3c7', padding: '12px', borderRadius: '10px', color: '#b45309', fontSize: '12px' }}>
-                      <AlertCircle size={16} />
-                      냉장고에 매칭된 재료가 등록되어 있지 않아 자동으로 정산할 재료가 없습니다.
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto', padding: '2px' }}>
-                      {selectedRecipe.matchedOwnedItems.map((item) => {
-                        const isChecked = usageChecklist[item.id];
-                        return (
-                          <div 
-                            key={item.id}
-                            onClick={() => handleToggleCheck(item.id)}
-                            style={{
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                              padding: '10px 14px',
-                              background: isChecked ? '#fef2f2' : '#f8fafc',
-                              border: isChecked ? '1px solid #fca5a5' : '1px solid var(--gray-200)',
-                              borderRadius: '10px',
-                              cursor: 'pointer',
-                              transition: 'all 0.15s'
-                            }}
-                          >
-                            <span style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--text-black)' }}>{item.name}</span>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <span style={{ fontSize: '10px', color: isChecked ? '#ef4444' : 'var(--primary-color)', fontWeight: 'bold' }}>
-                                {isChecked ? '모두 사용함 (삭제)' : '남음 (보관유지)'}
-                              </span>
-                              <div style={{
-                                width: '18px',
-                                height: '18px',
-                                borderRadius: '4px',
-                                border: '1px solid var(--gray-300)',
-                                backgroundColor: isChecked ? '#ef4444' : '#FFFFFF',
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {selectedRecipe.matchedOwnedItems.map(item => {
+                          const isChecked = usageChecklist[item.id];
+                          return (
+                            <div 
+                              key={item.id}
+                              onClick={() => handleToggleCheck(item.id)}
+                              style={{
                                 display: 'flex',
+                                justifyContent: 'space-between',
                                 alignItems: 'center',
-                                justifyContent: 'center'
-                              }}>
-                                {isChecked && <Check size={12} color="#FFFFFF" />}
+                                padding: '10px 14px',
+                                background: isChecked ? '#fff5f5' : '#f8fafc',
+                                border: isChecked ? '1px solid #feb2b2' : '1px solid var(--gray-200)',
+                                borderRadius: '10px',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s'
+                              }}
+                            >
+                              <span style={{ fontSize: '13px', fontWeight: 'bold', color: isChecked ? '#c53030' : 'var(--text-black)' }}>{item.name}</span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ fontSize: '11px', color: isChecked ? '#e53e3e' : 'var(--gray-500)', fontWeight: 'bold' }}>
+                                  {isChecked ? '사용함 (삭제)' : '남음 (보관)'}
+                                </span>
+                                <div style={{
+                                  width: '18px',
+                                  height: '18px',
+                                  borderRadius: '4px',
+                                  border: isChecked ? '1px solid #e53e3e' : '1px solid var(--gray-300)',
+                                  backgroundColor: isChecked ? '#e53e3e' : '#FFFFFF',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center'
+                                }}>
+                                  {isChecked && <Check size={12} color="#FFFFFF" />}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
@@ -890,7 +836,7 @@ const Cooking = () => {
                       boxShadow: '0 4px 6px rgba(55,146,113,0.2)'
                     }}
                   >
-                    최종 요리 완료하기!
+                    확인 및 삭제
                   </button>
                 </div>
               </div>
@@ -919,24 +865,24 @@ const Cooking = () => {
                     </div>
 
                     <div style={{ textAlign: 'center' }}>
-                      <h4 style={{ fontSize: '15px', fontWeight: 'bold', color: 'var(--text-black)', margin: '0 0 4px 0' }}>
+                      <h4 style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--text-black)', margin: '0 0 4px 0' }}>
                         🍳 전체 필요 재료 준비하기
                       </h4>
-                      <p style={{ fontSize: '11px', color: 'var(--gray-400)', margin: 0 }}>
+                      <p style={{ fontSize: '12px', color: 'var(--gray-400)', margin: 0 }}>
                         요리를 시작하기 전에 아래의 전체 필요한 재료들을 싱크대에 준비해 주세요!
                       </p>
                     </div>
 
                     {/* Ingredients detail block */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <label style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--gray-600)' }}>
+                      <label style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--gray-600)' }}>
                         필요한 전체 재료 & 분량
                       </label>
                       <div style={{ 
                         background: '#f8fafc', 
                         padding: '14px 16px', 
                         borderRadius: '14px', 
-                        fontSize: '12.5px', 
+                        fontSize: '13.5px', 
                         color: 'var(--gray-700)', 
                         lineHeight: '1.6',
                         border: '1.5px solid var(--gray-200)',
@@ -948,17 +894,17 @@ const Cooking = () => {
 
                     {/* Matching inventory highlight inside Step 0 */}
                     <div>
-                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: 'var(--gray-600)', marginBottom: '8px' }}>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', color: 'var(--gray-600)', marginBottom: '8px' }}>
                         우리집 냉장고 보유 상태
                       </label>
                       {selectedRecipe.matchedOwnedItems.length === 0 ? (
-                        <div style={{ fontSize: '11px', color: 'var(--gray-400)', background: '#f3f4f6', padding: '10px', borderRadius: '10px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '12px', color: 'var(--gray-400)', background: '#f3f4f6', padding: '10px', borderRadius: '10px', textAlign: 'center' }}>
                           매칭되는 냉장고 식재료가 없습니다.
                         </div>
                       ) : (
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '12px', borderRadius: '12px' }}>
                           {selectedRecipe.matchedOwnedItems.map(item => (
-                            <span key={item.id} style={{ fontSize: '10.5px', background: '#ffffff', color: '#166534', border: '1px solid #86efac', padding: '3px 8px', borderRadius: '6px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                            <span key={item.id} style={{ fontSize: '11px', background: '#ffffff', color: '#166534', border: '1px solid #86efac', padding: '3px 8px', borderRadius: '6px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '3px' }}>
                               ✅ {item.name}
                             </span>
                           ))}
@@ -992,7 +938,7 @@ const Cooking = () => {
                         <>
                           <div style={{
                             position: 'relative',
-                            height: '160px',
+                            height: '240px',
                             borderRadius: '16px',
                             background: stepInfo.actionBg || 'linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%)',
                             display: 'flex',
@@ -1010,7 +956,7 @@ const Cooking = () => {
                               background: 'rgba(0,0,0,0.25)',
                               backdropFilter: 'blur(4px)',
                               color: '#fff',
-                              fontSize: '11px',
+                              fontSize: '12px',
                               fontWeight: 'bold',
                               padding: '3px 8px',
                               borderRadius: '6px'
@@ -1022,7 +968,7 @@ const Cooking = () => {
                             {stepInfo.actionImage ? (
                               <img src={stepInfo.actionImage} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="조리 과정" />
                             ) : (
-                              <div style={{ fontSize: '56px', animation: 'pulse 2s infinite' }}>
+                              <div style={{ fontSize: '64px', animation: 'pulse 2s infinite' }}>
                                 {stepInfo.actionIcon}
                               </div>
                             )}
@@ -1034,20 +980,20 @@ const Cooking = () => {
                               background: 'rgba(255, 255, 255, 0.85)',
                               backdropFilter: 'blur(4px)',
                               color: 'var(--text-black)',
-                              fontSize: '11px',
+                              fontSize: '12px',
                               fontWeight: 'bold',
                               padding: '4px 12px',
                               borderRadius: '20px',
                               boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
                               border: '1px solid rgba(255,255,255,0.3)'
                             }}>
-                              조리 행동 : {stepInfo.actionName}
+                              조리 행동 : {stepInfo.actionName || `단계 ${activeStep}`}
                             </div>
                           </div>
 
                           {/* Action text explanation (Bottom Half) */}
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            <label style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--gray-400)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <label style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--gray-400)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                               <BookOpen size={14} /> 아주 친절한 조리 안내
                             </label>
                             
@@ -1056,11 +1002,11 @@ const Cooking = () => {
                               border: '1px solid var(--gray-200)',
                               padding: '16px', 
                               borderRadius: '16px', 
-                              fontSize: '13px', 
+                              fontSize: '14.5px', 
                               color: 'var(--text-black)', 
                               lineHeight: '1.6', 
                               fontWeight: '500',
-                              minHeight: '110px'
+                              minHeight: '130px'
                             }}>
                               {stepInfo.stepText}
                             </div>
