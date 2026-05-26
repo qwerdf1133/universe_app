@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import Header from '../components/Header';
 import BottomNav from '../components/BottomNav';
 import { getPostposition } from '../utils/korean';
-import { Flame, Check, X, AlertCircle, ArrowLeft, ArrowRight, BookOpen, Utensils, HelpCircle, Search } from 'lucide-react';
+import { Flame, Check, X, AlertCircle, ArrowLeft, ArrowRight, BookOpen, Utensils, HelpCircle, Search, ShoppingCart, Plus } from 'lucide-react';
 import { fetchRecipes } from '../utils/api';
 
 const RECIPES = [
@@ -266,9 +266,13 @@ const Cooking = () => {
   const [ingredients, setIngredients] = useState([]);
   const [recipesList, setRecipesList] = useState([]);
   const [allRecipes, setAllRecipes] = useState([]);
+  const CATEGORIES = ['전체', '밥', '국', '찌개', '면', '볶음', '튀김', '고기', '생선', '채소', '디저트', '음료', '분식'];
+  const [selectedCategory, setSelectedCategory] = useState('전체');
+  const [visibleCount, setVisibleCount] = useState(5);
+
   
   // Search & Pagination states
-  const [showMore, setShowMore] = useState(false);
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
@@ -286,7 +290,7 @@ const Cooking = () => {
   const [usageChecklist, setUsageChecklist] = useState({}); // { ingredientId: true/false }
   const [cookingResult, setCookingResult] = useState(null); // { name: '', leftovers: [], used: [] }
 
-  const loadData = async () => {
+  const loadData = async (cat = '전체', search = '') => {
     setIsFetching(true);
     let stored = localStorage.getItem('ingredients');
     let list = stored ? JSON.parse(stored) : [];
@@ -303,29 +307,36 @@ const Cooking = () => {
       return diffDays <= 7;
     }).map(item => item.name.toLowerCase());
 
-    // Fetch recipes from API (or fallback to RECIPES)
-    let fetched = await fetchRecipes(1, 30);
+    const apiCategory = cat === '전체' ? '' : cat;
+    let fetched = await fetchRecipes(1, 30, search, apiCategory);
+    
+    // Fallback to dummy if no results and no search/category, or just to show something
     if (!fetched || fetched.length === 0) {
-      fetched = RECIPES; // fallback to dummy
+      if (!search && !apiCategory) {
+        fetched = RECIPES;
+      } else {
+        fetched = RECIPES.filter(r => 
+          (!search || r.name.toLowerCase().includes(search.toLowerCase()) || r.ingredients.toLowerCase().includes(search.toLowerCase())) &&
+          (!apiCategory || r.category === apiCategory)
+        );
+      }
     }
     setAllRecipes(fetched);
 
-    // Process recipe matching
     const matched = fetched.map(recipe => {
+      const matchIngredientsSafe = recipe.matchIngredients || [];
       const matchedOwnedItems = list.filter(item => 
-        recipe.matchIngredients.some(m => 
+        matchIngredientsSafe.some(m => 
           item.name.toLowerCase().includes(m.toLowerCase()) || m.toLowerCase().includes(item.name.toLowerCase())
         )
       );
 
-      // Score matching
       let matchCount = 0;
       let expiringBonus = 0;
       
-      recipe.matchIngredients.forEach(m => {
+      matchIngredientsSafe.forEach(m => {
         if (ownedNames.some(name => name.includes(m.toLowerCase()) || m.toLowerCase().includes(name))) {
           matchCount++;
-          // Add extra weight if matched ingredient is expiring soon
           if (expiringNames.some(name => name.includes(m.toLowerCase()) || m.toLowerCase().includes(name))) {
             expiringBonus += 10; 
           }
@@ -340,22 +351,16 @@ const Cooking = () => {
       };
     });
 
-    // Sort by sortScore desc
     matched.sort((a, b) => b.sortScore - a.sortScore);
     setRecipesList(matched);
     setIsFetching(false);
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    loadData(selectedCategory, searchTerm);
+  }, [selectedCategory]);
 
-  // Filter recipes based on search term
-  const displayedRecipes = searchTerm 
-    ? allRecipes.filter(r => r.name.toLowerCase().includes(searchTerm.toLowerCase()) || r.ingredients.toLowerCase().includes(searchTerm.toLowerCase()))
-    : recipesList;
-
-  const visibleCount = showMore ? displayedRecipes.length : 4;
+  const displayedRecipes = recipesList;
 
   // Handle auto-opening of recipe from Home screen redirection
   useEffect(() => {
@@ -453,6 +458,28 @@ const Cooking = () => {
     setActiveStep(0);
   };
 
+  const handleAddToShoppingList = (ingredientName) => {
+    const stored = localStorage.getItem('shopping-list');
+    const list = stored ? JSON.parse(stored) : [];
+    
+    // Check if already exists
+    if (list.some(item => item.name === ingredientName)) {
+      alert(`'${ingredientName}'은(는) 이미 장보기 목록에 있습니다.`);
+      return;
+    }
+
+    list.push({
+      id: Date.now() + Math.random(),
+      name: ingredientName,
+      category: '기타',
+      memo: `${selectedRecipe.name} 요리를 위해 추가됨`,
+      checked: false
+    });
+
+    localStorage.setItem('shopping-list', JSON.stringify(list));
+    alert(`'${ingredientName}'을(를) 장보기 목록에 추가했습니다!`);
+  };
+
   return (
     <div className="page-container">
       <Header title="추천 요리 레시피" />
@@ -476,9 +503,39 @@ const Cooking = () => {
         <p style={{ fontSize: '12px', color: 'var(--gray-500)', marginTop: '0px', marginBottom: '20px' }}>
           {searchTerm ? '검색어와 관련된 레시피를 확인하세요.' : '내 냉장고 속 식재료와 매칭률이 높은 순서대로 레시피를 추천합니다. (유통기한 임박 재료 우선)'}
         </p>
+        {/* Categories */}
+        <div style={{ display: 'flex', overflowX: 'auto', gap: '8px', paddingBottom: '12px', marginBottom: '8px', scrollbarWidth: 'none' }}>
+          {CATEGORIES.map(cat => (
+            <button
+              key={cat}
+              onClick={() => {
+                setSelectedCategory(cat);
+                setVisibleCount(5);
+              }}
+              style={{
+                padding: '6px 14px',
+                borderRadius: '20px',
+                border: 'none',
+                background: selectedCategory === cat ? 'var(--primary-color)' : '#f3f4f6',
+                color: selectedCategory === cat ? '#fff' : 'var(--gray-600)',
+                fontSize: '13px',
+                fontWeight: 'bold',
+                whiteSpace: 'nowrap',
+                cursor: 'pointer'
+              }}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
 
         {isFetching ? (
           <div style={{ textAlign: 'center', color: 'var(--gray-500)', padding: '20px' }}>레시피를 불러오는 중입니다...</div>
+        ) : displayedRecipes.length === 0 ? (
+          <div style={{ textAlign: 'center', color: 'var(--gray-500)', padding: '40px 20px', fontSize: '14px', background: '#f9fafb', borderRadius: '12px' }}>
+            요리를 찾을 수 없습니다.
+          </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             {displayedRecipes.slice(0, visibleCount).map((recipe) => {
@@ -582,13 +639,13 @@ const Cooking = () => {
             );
           })}
           
-          {!searchTerm && displayedRecipes.length > 4 && (
+          {displayedRecipes.length > visibleCount && (
             <button 
               className="btn-primary" 
               style={{ background: '#f3f4f6', color: 'var(--gray-600)', border: 'none', marginTop: '8px' }}
-              onClick={() => setShowMore(!showMore)}
+              onClick={() => setVisibleCount(prev => Math.min(prev + 5, 30))}
             >
-              {showMore ? '접기' : '더보기'}
+              더보기 ({visibleCount}/{Math.min(displayedRecipes.length, 30)})
             </button>
           )}
         </div>
@@ -618,7 +675,8 @@ const Cooking = () => {
                   if (e.key === 'Enter') {
                     setSearchTerm(e.target.value);
                     setIsSearchModalOpen(false);
-                    setShowMore(true);
+                    setVisibleCount(5);
+                    loadData(selectedCategory, e.target.value);
                   }
                 }}
                 id="search-input"
@@ -628,7 +686,8 @@ const Cooking = () => {
                   const val = document.getElementById('search-input').value;
                   setSearchTerm(val);
                   setIsSearchModalOpen(false);
-                  setShowMore(true);
+                  setVisibleCount(5);
+                  loadData(selectedCategory, val);
                 }}
                 style={{ position: 'absolute', right: '12px', top: '10px', background: 'none', border: 'none', cursor: 'pointer' }}
               >
@@ -739,9 +798,11 @@ const Cooking = () => {
                   <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--text-black)', margin: 0 }}>
                     {selectedRecipe.name}
                   </h3>
-                  <span style={{ fontSize: '10px', color: 'var(--gray-400)' }}>
-                    조리 가이드 시뮬레이터
-                  </span>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
+                    {selectedRecipe.category && <span style={{ fontSize: '10px', background: '#e0f2ec', color: 'var(--primary-color)', padding: '2px 6px', borderRadius: '4px' }}>{selectedRecipe.category}</span>}
+                    {selectedRecipe.weight && <span style={{ fontSize: '10px', background: '#f3f4f6', color: 'var(--gray-600)', padding: '2px 6px', borderRadius: '4px' }}>{selectedRecipe.weight}</span>}
+                    {selectedRecipe.hashTag && <span style={{ fontSize: '10px', color: '#3b82f6' }}>{selectedRecipe.hashTag.split(',').map(tag => `#${tag.trim()} `)}</span>}
+                  </div>
                 </div>
               </div>
               <button 
@@ -912,6 +973,41 @@ const Cooking = () => {
                       )}
                     </div>
 
+
+                    {/* Missing inventory highlight inside Step 0 */}
+                    {(() => {
+                      const missingIngredients = selectedRecipe.matchIngredients.filter(m => 
+                        !selectedRecipe.matchedOwnedItems.some(item => 
+                          item.name.toLowerCase().includes(m.toLowerCase()) || m.toLowerCase().includes(item.name.toLowerCase())
+                        )
+                      );
+
+                      if (missingIngredients.length > 0) {
+                        return (
+                          <div style={{ marginTop: '8px' }}>
+                            <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', color: '#e53e3e', marginBottom: '8px' }}>
+                              부족한 식재료 (장보기 필요)
+                            </label>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', background: '#fff5f5', border: '1px solid #feb2b2', padding: '12px', borderRadius: '12px' }}>
+                              {missingIngredients.map((m, idx) => (
+                                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#ffffff', border: '1px solid #fc8181', padding: '3px 8px', borderRadius: '6px' }}>
+                                  <span style={{ fontSize: '11px', color: '#c53030', fontWeight: 'bold' }}>{m}</span>
+                                  <button 
+                                    onClick={() => handleAddToShoppingList(m)}
+                                    style={{ background: 'none', border: 'none', padding: '2px', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#e53e3e' }}
+                                    title="장바구니 추가"
+                                  >
+                                    <ShoppingCart size={12} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+
                     {/* Navigation buttons */}
                     <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
                       <button 
@@ -966,7 +1062,7 @@ const Cooking = () => {
 
                             {/* Centered Large Action Graphic Icon / Image */}
                             {stepInfo.actionImage ? (
-                              <img src={stepInfo.actionImage} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="조리 과정" />
+                              <img src={stepInfo.actionImage} style={{ width: '100%', height: '100%', objectFit: 'contain' }} alt="조리 과정" />
                             ) : (
                               <div style={{ fontSize: '64px', animation: 'pulse 2s infinite' }}>
                                 {stepInfo.actionIcon}

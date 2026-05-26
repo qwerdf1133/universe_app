@@ -136,7 +136,7 @@ const Home = () => {
       return { ...recipe, matchCount };
     });
     matched.sort((a, b) => b.matchCount - a.matchCount);
-    setRecommendedRecipes(matched.slice(0, 2));
+    setRecommendedRecipes(matched.slice(0, 5));
   };
 
   useEffect(() => {
@@ -172,8 +172,8 @@ const Home = () => {
     // Sort by matchCount desc
     matched.sort((a, b) => b.matchCount - a.matchCount);
 
-    // Take top 2 recommendations
-    setRecommendedRecipes(matched.slice(0, 2));
+    // Take top 5 recommendations
+    setRecommendedRecipes(matched.slice(0, 5));
   }, []);
 
   return (
