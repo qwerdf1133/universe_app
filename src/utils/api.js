@@ -3,12 +3,17 @@
 const API_KEY = '2769a878073d4c44a540'; 
 const SERVICE_ID = 'COOKRCP01';
 
+const sanitizeImageUrl = (url) => {
+  if (!url) return null;
+  return url.replace(/^http:\/\//i, 'https://');
+};
+
 let cachedRecipes = null;
 
 export const fetchRecipes = async (startIdx = 1, endIdx = 20, recipeName = '', category = '') => {
   try {
     if (!cachedRecipes) {
-      const url = `http://openapi.foodsafetykorea.go.kr/api/${API_KEY}/${SERVICE_ID}/json/1/1000`;
+      const url = `https://openapi.foodsafetykorea.go.kr/api/${API_KEY}/${SERVICE_ID}/json/1/1000`;
       const response = await fetch(url);
       const data = await response.json();
       
@@ -45,7 +50,7 @@ export const fetchRecipes = async (startIdx = 1, endIdx = 20, recipeName = '', c
                 actionName: `단계 ${i}`,
                 actionIcon,
                 actionBg,
-                actionImage: stepImg || null
+                actionImage: sanitizeImageUrl(stepImg)
               });
             }
           }
@@ -61,7 +66,7 @@ export const fetchRecipes = async (startIdx = 1, endIdx = 20, recipeName = '', c
             difficulty: '보통',
             emoji: '🥘',
             imageBg: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
-            mainImage: item.ATT_FILE_NO_MAIN || item.ATT_FILE_NO_MK || null,
+            mainImage: sanitizeImageUrl(item.ATT_FILE_NO_MAIN || item.ATT_FILE_NO_MK),
             detailedSteps
           };
         });
