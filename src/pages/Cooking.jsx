@@ -364,7 +364,11 @@ const Cooking = () => {
 
   // Handle auto-opening of recipe from Home screen redirection
   useEffect(() => {
-    if (location.state && location.state.openRecipeId && recipesList.length > 0) {
+    if (location.state && location.state.recipe) {
+      setPendingRecipe(location.state.recipe);
+      // Clear state to prevent reopening on reload
+      window.history.replaceState({}, document.title);
+    } else if (location.state && location.state.openRecipeId && recipesList.length > 0) {
       const found = recipesList.find(r => r.id === location.state.openRecipeId);
       if (found) {
         // Trigger confirmation modal first
@@ -384,14 +388,27 @@ const Cooking = () => {
   const handleStartCooking = () => {
     if (!pendingRecipe) return;
     
-    const recipe = pendingRecipe;
+    // Recalculate matchedOwnedItems with latest refrigerator state
+    const latestIngredients = JSON.parse(localStorage.getItem('ingredients') || '[]');
+    const matchIngredientsSafe = pendingRecipe.matchIngredients || [];
+    const matchedOwnedItems = latestIngredients.filter(item => 
+      matchIngredientsSafe.some(m => 
+        item.name.toLowerCase().includes(m.toLowerCase()) || m.toLowerCase().includes(item.name.toLowerCase())
+      )
+    );
+
+    const recipe = {
+      ...pendingRecipe,
+      matchedOwnedItems
+    };
+    
     setSelectedRecipe(recipe);
     setPendingRecipe(null);
     setActiveStep(0); // Step 0: 전체 재료 확인
 
     // Initialize usage checklist (default: checked "모두 사용함" for owned items)
     const initialCheck = {};
-    recipe.matchedOwnedItems.forEach(item => {
+    matchedOwnedItems.forEach(item => {
       initialCheck[item.id] = true; // default true = delete/fully used
     });
     setUsageChecklist(initialCheck);

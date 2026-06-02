@@ -225,15 +225,23 @@ const Shopping = () => {
       saveShoppingList(updated);
       alert(`"${name}"이(가) 내 장보기 목록에 추가되었습니다.`);
     } else {
-      // Add to Member Requests List (requested by "나" with cute avatar)
+      // Add to Member Requests List (requested by currentUser with dynamic avatar)
+      const currentUserStr = localStorage.getItem('currentUser');
+      const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
+      const nickname = currentUser ? currentUser.nickname : '나';
+
+      const avatars = ['🐰', '🐱', '🦊', '🐻', '🐼', '🦁', '🐸', '🐨', '🐯', '😎'];
+      const charCodeSum = nickname.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+      const avatar = avatars[charCodeSum % avatars.length];
+
       const newRequest = {
         id: Date.now(),
         name,
         category: finalCat,
         qty: memo || '1개',
         checked: false,
-        requester: '나',
-        avatar: '😎'
+        requester: nickname,
+        avatar: avatar
       };
       const updated = [...memberRequests, newRequest];
       saveMemberRequests(updated);
@@ -542,27 +550,43 @@ const Shopping = () => {
         {/* ==================== 구성원 장보기 요청 목록 ==================== */}
         {activeTab === 'member' && (
           <div>
-            {/* Requester Header box */}
-            <div style={{ background: '#f0fdf4', border: '1px dashed #bbf7d0', padding: '16px', borderRadius: '16px', marginBottom: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
-                <span style={{ fontSize: '24px' }}>👩</span>
-                <div>
-                  <h4 style={{ fontWeight: 'bold', color: 'var(--primary-color)', fontSize: '15px' }}>
-                    엄마님이 재료를 사오라고 요청했어요! <span style={{ color: 'red' }}>(총 {memberRequests.length}개)</span>
-                  </h4>
-                  <p style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '2px' }}>
-                    요청일: 2026.05.17(일) 오후 10:30
-                  </p>
-                </div>
-              </div>
-            </div>
-
             {memberRequests.length === 0 ? (
-              <div style={{ padding: '24px', textAlign: 'center', color: 'var(--gray-400)', border: '1px dashed var(--gray-200)', borderRadius: '12px' }}>
-                요청 목록이 비어 있습니다.
+              <div style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                height: '200px', border: '2px dashed var(--gray-300)', borderRadius: '12px',
+                backgroundColor: '#fafafa', marginTop: '20px'
+              }}>
+                <p style={{ color: 'var(--gray-500)', fontSize: '15px', fontWeight: 'bold' }}>요청사항이 없어요!</p>
               </div>
             ) : (
               <div>
+                {/* Requester Header box */}
+                {(() => {
+                  const latestReq = memberRequests[memberRequests.length - 1];
+                  const latestRequester = latestReq ? latestReq.requester : '구성원';
+                  const latestAvatar = latestReq ? latestReq.avatar : '👩';
+                  
+                  const currentUserStr = localStorage.getItem('currentUser');
+                  const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
+                  const currentNickname = currentUser ? currentUser.nickname : '나';
+
+                  return (
+                    <div style={{ background: '#f0fdf4', border: '1px dashed #bbf7d0', padding: '16px', borderRadius: '16px', marginBottom: '16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                        <span style={{ fontSize: '24px' }}>{latestAvatar}</span>
+                        <div>
+                          <h4 style={{ fontWeight: 'bold', color: 'var(--primary-color)', fontSize: '14.5px', margin: 0 }}>
+                            {latestRequester === currentNickname ? '내가' : `${latestRequester}님이`} 재료를 사오라고 요청했어요! <span style={{ color: 'red' }}>(총 {memberRequests.length}개)</span>
+                          </h4>
+                          <p style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '4px', margin: 0 }}>
+                            최근 요청일: {new Date(latestReq ? latestReq.id : Date.now()).toLocaleDateString('ko-KR')}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* Header Controls for Member Requests */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                   <button 
@@ -618,26 +642,33 @@ const Shopping = () => {
                         cursor: 'pointer'
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
                         {/* Checkbox */}
-                        <div style={{ color: reqItem.checked ? 'var(--primary-color)' : 'var(--gray-300)' }}>
+                        <div style={{ color: reqItem.checked ? 'var(--primary-color)' : 'var(--gray-300)', flexShrink: 0 }}>
                           {reqItem.checked ? <CheckSquare size={20} /> : <Square size={20} />}
                         </div>
 
                         {/* Requester Profile Badge */}
-                        <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#e0f2ec', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>
-                          {reqItem.avatar}
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', minWidth: '50px', flexShrink: 0 }}>
+                          <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#e0f2ec', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>
+                            {reqItem.avatar || '👤'}
+                          </div>
+                          <span style={{ fontSize: '9px', color: 'var(--gray-500)', fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '50px' }}>
+                            {reqItem.requester || '미정'}
+                          </span>
                         </div>
                         
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ fontWeight: 'bold', fontSize: '15px' }}>{reqItem.name}</span>
-                            <span style={{ fontSize: '10px', background: '#e2e8f0', color: 'var(--gray-600)', padding: '2px 5px', borderRadius: '4px' }}>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                            <span style={{ fontWeight: 'bold', fontSize: '15px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{reqItem.name}</span>
+                            <span style={{ fontSize: '10px', background: '#e2e8f0', color: 'var(--gray-600)', padding: '2px 5px', borderRadius: '4px', flexShrink: 0 }}>
                               {reqItem.category}
                             </span>
                           </div>
-                          <div style={{ fontSize: '12px', color: 'var(--primary-color)', marginTop: '2px', fontWeight: '500' }}>
-                            요구량: {reqItem.qty}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: '11px', color: 'var(--gray-500)' }}>요청자: <strong>{reqItem.requester || '미정'}</strong></span>
+                            <span style={{ fontSize: '11px', color: 'var(--gray-300)' }}>|</span>
+                            <span style={{ fontSize: '11px', color: 'var(--primary-color)', fontWeight: 'bold' }}>요구량: {reqItem.qty}</span>
                           </div>
                         </div>
                       </div>
@@ -658,7 +689,9 @@ const Shopping = () => {
                           display: 'flex',
                           alignItems: 'center',
                           gap: '4px',
-                          cursor: 'pointer'
+                          cursor: 'pointer',
+                          flexShrink: 0,
+                          marginLeft: '8px'
                         }}
                       >
                         내 목록 추가 <ArrowRight size={14} />

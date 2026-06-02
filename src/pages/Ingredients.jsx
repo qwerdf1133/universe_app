@@ -4,6 +4,7 @@ import BottomNav from '../components/BottomNav';
 import AddIngredientModal from '../components/AddIngredientModal';
 import IngredientDetailModal from '../components/IngredientDetailModal';
 import { Plus, Box, Droplet, Snowflake, Heart } from 'lucide-react';
+import { getHouseholdData, setHouseholdData } from '../utils/household';
 
 const DUMMY_INGREDIENTS = [
   { id: 1, name: '돼지고기 삼겹살', category: '육류', storageLocation: '냉장', expDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(), isFavorite: true, purchaseDate: new Date().toISOString().split('T')[0], memo: '구이용 삼겹살' },
@@ -22,13 +23,8 @@ const Ingredients = () => {
   const [activeFilter, setActiveFilter] = useState('all'); // 'all', 'expiring', '냉장', '냉동', '실온', '기타', 'favorite'
 
   const loadData = () => {
-    const stored = localStorage.getItem('ingredients');
-    if (!stored) {
-      localStorage.setItem('ingredients', JSON.stringify([]));
-      setIngredients([]);
-    } else {
-      setIngredients(JSON.parse(stored));
-    }
+    const data = getHouseholdData('ingredients', []);
+    setIngredients(data);
   };
 
   useEffect(() => {
@@ -58,7 +54,7 @@ const Ingredients = () => {
   };
 
   const toggleFavorite = (id, e) => {
-    e.stopPropagation(); // Card 클릭 모달 방지
+    e.stopPropagation();
     const updated = ingredients.map(item => {
       if (item.id === id) {
         return { ...item, isFavorite: !item.isFavorite };
@@ -66,7 +62,7 @@ const Ingredients = () => {
       return item;
     });
     setIngredients(updated);
-    localStorage.setItem('ingredients', JSON.stringify(updated));
+    setHouseholdData('ingredients', updated);
   };
 
   const handleCardClick = (item) => {

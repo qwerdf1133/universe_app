@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 
 const SignUp = () => {
   const navigate = useNavigate();
@@ -117,13 +118,19 @@ const SignUp = () => {
       return alert('6자리 가구 코드를 입력해주세요.');
     }
 
-    // Save to user profile
     const usersStr = localStorage.getItem('users');
-    if (usersStr) {
-      const users = JSON.parse(usersStr);
-      const updated = users.map(u => u.id === id ? { ...u, householdCode: enteredCode.toUpperCase(), householdType: '가구 참가' } : u);
-      localStorage.setItem('users', JSON.stringify(updated));
+    const users = usersStr ? JSON.parse(usersStr) : [];
+    
+    // Check if the entered code exists among generated codes (i.e. users with householdType === '가구 생성' and householdCode === enteredCode)
+    const isCodeValid = users.some(u => u.householdCode === enteredCode.toUpperCase() && u.householdType === '가구 생성');
+    
+    if (!isCodeValid) {
+      return alert('존재하지 않는 가구 코드입니다. 다시 확인 후 입력해주세요.');
     }
+
+    // Save to user profile
+    const updated = users.map(u => u.id === id ? { ...u, householdCode: enteredCode.toUpperCase(), householdType: '가구 참가' } : u);
+    localStorage.setItem('users', JSON.stringify(updated));
 
     alert(`코드 [${enteredCode.toUpperCase()}] 가구에 참가하였습니다!`);
     navigate('/setup');
@@ -135,8 +142,14 @@ const SignUp = () => {
 
   return (
     <div className="page-container" style={{ padding: '20px', position: 'relative' }}>
-      <div style={{ marginBottom: '20px', marginTop: '20px' }}>
-        <h1 style={{ fontSize: '24px', fontWeight: 'bold' }}>회원가입</h1>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', marginTop: '20px' }}>
+        <button 
+          onClick={() => navigate('/login')}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
+        >
+          <ArrowLeft size={24} color="var(--text-black)" />
+        </button>
+        <h1 style={{ fontSize: '24px', fontWeight: 'bold', margin: 0 }}>회원가입</h1>
       </div>
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>

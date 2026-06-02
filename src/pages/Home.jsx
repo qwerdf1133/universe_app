@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import BottomNav from '../components/BottomNav';
 import { AlertTriangle, Trash2 } from 'lucide-react';
+import { fetchRecipes } from '../utils/api';
+import { getHouseholdData, setHouseholdData } from '../utils/household';
 
 const RECIPES = [
   {
@@ -103,10 +105,61 @@ const Home = () => {
   const [expiringItems, setExpiringItems] = useState([]);
   const [recommendedRecipes, setRecommendedRecipes] = useState([]);
 
+  const loadRecommendedRecipes = async (list) => {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+
+    const expiring = list.filter(item => {
+      const exp = new Date(item.expDate);
+      exp.setHours(0,0,0,0);
+      const diffTime = exp - today;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays <= 7;
+    });
+
+    const expiringNames = expiring.map(item => item.name.toLowerCase());
+    const ownedNames = list.map(item => item.name.toLowerCase());
+
+    let apiRecipes = await fetchRecipes(1, 1000);
+    
+    if (!apiRecipes || apiRecipes.length === 0) {
+      apiRecipes = RECIPES;
+    }
+
+    const scored = apiRecipes.map(recipe => {
+      const matchIngredientsSafe = recipe.matchIngredients || [];
+      
+      let expiringMatchCount = 0;
+      matchIngredientsSafe.forEach(m => {
+        if (expiringNames.some(name => name.includes(m.toLowerCase()) || m.toLowerCase().includes(name))) {
+          expiringMatchCount++;
+        }
+      });
+      
+      let ownedMatchCount = 0;
+      matchIngredientsSafe.forEach(m => {
+        if (ownedNames.some(name => name.includes(m.toLowerCase()) || m.toLowerCase().includes(name))) {
+          ownedMatchCount++;
+        }
+      });
+      
+      const score = (expiringMatchCount * 100) + ownedMatchCount;
+      
+      return {
+        ...recipe,
+        matchCount: ownedMatchCount,
+        expiringMatchCount,
+        score
+      };
+    });
+
+    scored.sort((a, b) => b.score - a.score);
+    setRecommendedRecipes(scored.slice(0, 5));
+  };
+
   const handleDeleteExpired = () => {
-    let stored = localStorage.getItem('ingredients');
-    if (!stored) return;
-    let list = JSON.parse(stored);
+    let list = getHouseholdData('ingredients');
+    if (!list || list.length === 0) return;
 
     const today = new Date();
     today.setHours(0,0,0,0);
@@ -116,7 +169,7 @@ const Home = () => {
       return diffDays >= 0;
     });
 
-    localStorage.setItem('ingredients', JSON.stringify(updated));
+    setHouseholdData('ingredients', updated);
     alert('유통기한이 만료된 식재료가 삭제되었습니다.');
 
     const expiring = updated.filter(item => {
@@ -128,25 +181,12 @@ const Home = () => {
     });
     setExpiringItems(expiring);
 
-    const ownedNames = updated.map(item => item.name.toLowerCase());
-    const matched = RECIPES.map(recipe => {
-      const matchCount = recipe.matchIngredients.filter(m => 
-        ownedNames.some(name => name.includes(m.toLowerCase()) || m.toLowerCase().includes(name))
-      ).length;
-      return { ...recipe, matchCount };
-    });
-    matched.sort((a, b) => b.matchCount - a.matchCount);
-    setRecommendedRecipes(matched.slice(0, 5));
+    loadRecommendedRecipes(updated);
   };
 
   useEffect(() => {
-    let stored = localStorage.getItem('ingredients');
-    let list = [];
-    if (stored) {
-      list = JSON.parse(stored);
-    }
+    const list = getHouseholdData('ingredients', []);
 
-    // Filter expiring items (within 3 days)
     const today = new Date();
     today.setHours(0,0,0,0);
 
@@ -159,21 +199,7 @@ const Home = () => {
     });
     setExpiringItems(expiring);
 
-    // Calculate recipe matching count
-    const ownedNames = list.map(item => item.name.toLowerCase());
-    
-    const matched = RECIPES.map(recipe => {
-      const matchCount = recipe.matchIngredients.filter(m => 
-        ownedNames.some(name => name.includes(m.toLowerCase()) || m.toLowerCase().includes(name))
-      ).length;
-      return { ...recipe, matchCount };
-    });
-
-    // Sort by matchCount desc
-    matched.sort((a, b) => b.matchCount - a.matchCount);
-
-    // Take top 5 recommendations
-    setRecommendedRecipes(matched.slice(0, 5));
+    loadRecommendedRecipes(list);
   }, []);
 
   return (
@@ -274,30 +300,62 @@ const Home = () => {
           {recommendedRecipes.map(recipe => (
             <div 
               key={recipe.id} 
-              onClick={() => navigate('/cooking', { state: { openRecipeId: recipe.id } })}
+              onClick={() => navigate('/cooking', { state: { recipe } })}
               style={{
-                padding: '16px',
+                padding: '12px 14px',
                 background: '#FFFFFF',
                 border: '1px solid var(--gray-200)',
-                borderRadius: '12px',
+                borderRadius: '16px',
                 cursor: 'pointer',
                 transition: 'all 0.2s',
                 display: 'flex',
-                justifyContent: 'space-between',
                 alignItems: 'center',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+                gap: '14px',
+                boxShadow: '0 4px 6px rgba(0,0,0,0.01)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 12px rgba(0,0,0,0.04)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.01)';
               }}
             >
-              <div>
-                <h3 style={{ fontWeight: 'bold', fontSize: '15px', color: 'var(--text-black)', marginBottom: '4px' }}>
+              {/* Left Side: Recipe image */}
+              <div style={{
+                width: '60px',
+                height: '60px',
+                borderRadius: '12px',
+                background: recipe.imageBg || 'linear-gradient(135deg, #e0f2ec 0%, #379271 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '28px',
+                flexShrink: 0,
+                boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                overflow: 'hidden'
+              }}>
+                {recipe.mainImage ? (
+                  <img src={recipe.mainImage} alt={recipe.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  recipe.emoji || '🥘'
+                )}
+              </div>
+
+              {/* Center: Details */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h3 style={{ fontWeight: 'bold', fontSize: '14.5px', color: 'var(--text-black)', margin: '0 0 4px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {recipe.name}
                 </h3>
-                <p style={{ fontSize: '12px', color: 'var(--gray-500)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '300px' }}>
+                <p style={{ fontSize: '11.5px', color: 'var(--gray-500)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   재료: {recipe.ingredients}
                 </p>
               </div>
+
+              {/* Right: Badge */}
               <div style={{ 
-                fontSize: '11px', 
+                fontSize: '10.5px', 
                 background: recipe.matchCount > 0 ? '#e0f2ec' : '#f3f4f6', 
                 color: recipe.matchCount > 0 ? 'var(--primary-color)' : 'var(--gray-500)', 
                 padding: '4px 8px', 

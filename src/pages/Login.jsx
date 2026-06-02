@@ -19,6 +19,7 @@ const Login = () => {
     
     if (user) {
       setErrorMsg('');
+      localStorage.setItem('currentUser', JSON.stringify({ id: user.id, nickname: user.nickname }));
       navigate('/home');
     } else {
       setErrorMsg('아이디 또는 비밀번호가 틀렸습니다');
