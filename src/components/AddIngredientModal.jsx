@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Camera, Edit3, Box, Droplet, Snowflake } from 'lucide-react';
 import { CATEGORIES, detectCategoryByFoodName, getAutoExpiryDate, getFoodIcon } from '../utils/categories';
 import { getHouseholdData, setHouseholdData } from '../utils/household';
@@ -20,10 +20,41 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
 
   // Camera Mock State
   const [isScanning, setIsScanning] = useState(false);
+  const [videoStream, setVideoStream] = useState(null);
+  const videoRef = useRef(null);
+
+  useEffect(() => {
+    if (isOpen && step === 'camera') {
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+        .then(stream => {
+          setVideoStream(stream);
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+          }
+        })
+        .catch(err => {
+          console.warn("Camera stream not available, falling back to mockup scanner UI.", err);
+        });
+    } else {
+      if (videoStream) {
+        videoStream.getTracks().forEach(track => track.stop());
+        setVideoStream(null);
+      }
+    }
+    return () => {
+      if (videoStream) {
+        videoStream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [step, isOpen]);
 
   if (!isOpen) return null;
 
   const handleClose = () => {
+    if (videoStream) {
+      videoStream.getTracks().forEach(track => track.stop());
+      setVideoStream(null);
+    }
     setStep('select-method');
     setName('');
     setTags([]);
@@ -217,13 +248,53 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
     const list = getHouseholdData('ingredients', []);
 
     if (step === 'camera-result') {
-      const items = [
-        { id: Date.now() + 1, name: '돼지고기 삼겹살', category: '육류', purchaseDate: new Date().toISOString().split('T')[0], expDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(), storageLocation: '냉장', memo: '영수증 인식', isFavorite: false },
-        { id: Date.now() + 2, name: '양파', category: '채소', purchaseDate: new Date().toISOString().split('T')[0], expDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), storageLocation: '냉장', memo: '영수증 인식', isFavorite: false },
-        { id: Date.now() + 3, name: '깐마늘', category: '채소', purchaseDate: new Date().toISOString().split('T')[0], expDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), storageLocation: '냉동', memo: '영수증 인식', isFavorite: false },
-        { id: Date.now() + 4, name: '상추', category: '채소', purchaseDate: new Date().toISOString().split('T')[0], expDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), storageLocation: '냉장', memo: '영수증 인식', isFavorite: false },
+      const rawReceiptItems = [
+        { name: '돼지고기 삼겹살', quantity: '600g' },
+        { name: '서울우유', quantity: '1L' },
+        { name: '깐마늘', quantity: '200g' },
+        { name: '신라면', quantity: '5입' },
+        { name: '퐁퐁 주방세제', quantity: '1개' },
+        { name: '종이컵', quantity: '50개입' },
+        { name: '쓰레기 종량제 봉투', quantity: '20L' },
+        { name: '고무장갑', quantity: '1개' }
       ];
-      const updatedList = [...list, ...items];
+      
+      const nonFoodKeywords = [
+        '봉투', '세제', '컵', '장갑', '퐁퐁', '비닐', '휴지', '샴푸', '비누', '치약', '칫솔', '행주', '수세미',
+        '락스', '티슈', '키친타올', '접시', '나무젓가락', '빨대', '부탄가스', '호일', '랩', '수저'
+      ];
+      
+      const detectedIngredients = rawReceiptItems.filter(item => 
+        !nonFoodKeywords.some(kw => item.name.includes(kw))
+      ).map((item, idx) => {
+        const detectedCat = detectCategoryByFoodName(item.name);
+        let storage = '냉장';
+        if (detectedCat.id === 'frozen') {
+          storage = '냉동';
+        } else if (['grain', 'processed', 'drink', 'seasoning', 'sauce', 'spice', 'other'].includes(detectedCat.id)) {
+          storage = '실온';
+        }
+        
+        const autoExp = getAutoExpiryDate(item.name, purchaseDate);
+        let finalExp = '';
+        if (autoExp) {
+          finalExp = new Date(autoExp).toISOString();
+        }
+
+        return {
+          id: Date.now() + idx,
+          name: item.name,
+          category: detectedCat.name,
+          purchaseDate,
+          expDate: finalExp,
+          storageLocation: storage,
+          memo: '영수증 인식',
+          quantity: item.quantity,
+          isFavorite: false
+        };
+      });
+
+      const updatedList = [...list, ...detectedIngredients];
       setHouseholdData('ingredients', updatedList);
     } else {
       if (!name.trim()) {
@@ -482,10 +553,42 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
           <p style={{ color: 'var(--gray-400)', fontSize: '14px', textAlign: 'center' }}>영수증이 사각형 안에 들어오게 맞춰주세요</p>
           <div style={{ 
             width: '100%', height: '300px', backgroundColor: '#1e1e1e', borderRadius: '12px', 
-            position: 'relative', overflow: 'hidden'
+            position: 'relative', overflow: 'hidden', display: 'flex', justifyContent: 'center', alignItems: 'center'
           }}>
-            {/* Camera Viewport Mock */}
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            {/* Real Video element */}
+            <video 
+              ref={videoRef}
+              autoPlay 
+              playsInline 
+              style={{ 
+                position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover',
+                display: videoStream ? 'block' : 'none'
+              }} 
+            />
+            
+            {/* Fallback View when stream is not active */}
+            {!videoStream && (
+              <div style={{ color: '#fff', textAlign: 'center', padding: '20px', zIndex: 1 }}>
+                <p style={{ fontSize: '13px', margin: '0 0 10px 0' }}>📷 실시간 카메라 화면 준비 중...</p>
+                <div style={{
+                  fontSize: '11px', background: 'rgba(255,255,255,0.1)', padding: '10px', borderRadius: '8px',
+                  display: 'inline-block', textAlign: 'left', lineHeight: '1.5', border: '1px solid rgba(255,255,255,0.2)'
+                }}>
+                  <strong>[인식될 영수증 예시]</strong><br />
+                  - 돼지고기 삼겹살 600g<br />
+                  - 서울우유 1L<br />
+                  - 깐마늘 200g<br />
+                  - 신라면 5입<br />
+                  - 퐁퐁 주방세제 (비식재료)<br />
+                  - 종이컵 50개입 (비식재료)<br />
+                  - 쓰레기 종량제 봉투 20L (비식재료)<br />
+                  - 고무장갑 (비식재료)
+                </div>
+              </div>
+            )}
+
+            {/* Camera Frame Overlay */}
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2, pointerEvents: 'none' }}>
               <div style={{ width: '80%', height: '80%', border: '2px dashed rgba(255,255,255,0.7)', position: 'relative' }}>
                 <div style={{ position: 'absolute', top: '-2px', left: '-2px', width: '20px', height: '20px', borderTop: '4px solid #fff', borderLeft: '4px solid #fff' }} />
                 <div style={{ position: 'absolute', top: '-2px', right: '-2px', width: '20px', height: '20px', borderTop: '4px solid #fff', borderRight: '4px solid #fff' }} />
@@ -498,7 +601,8 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
               <div style={{ 
                 position: 'absolute', top: 0, left: 0, right: 0, height: '4px', backgroundColor: 'var(--primary-color)',
                 boxShadow: '0 0 10px var(--primary-color)',
-                animation: 'scan 2s infinite linear'
+                animation: 'scan 2s infinite linear',
+                zIndex: 3
               }} />
             )}
           </div>
@@ -516,38 +620,83 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
     }
 
     if (step === 'camera-result') {
+      const rawReceiptItems = [
+        { name: '돼지고기 삼겹살', quantity: '600g' },
+        { name: '서울우유', quantity: '1L' },
+        { name: '깐마늘', quantity: '200g' },
+        { name: '신라면', quantity: '5입' },
+        { name: '퐁퐁 주방세제', quantity: '1개' },
+        { name: '종이컵', quantity: '50개입' },
+        { name: '쓰레기 종량제 봉투', quantity: '20L' },
+        { name: '고무장갑', quantity: '1개' }
+      ];
+      
+      const nonFoodKeywords = [
+        '봉투', '세제', '컵', '장갑', '퐁퐁', '비닐', '휴지', '샴푸', '비누', '치약', '칫솔', '행주', '수세미',
+        '락스', '티슈', '키친타올', '접시', '나무젓가락', '빨대', '부탄가스', '호일', '랩', '수저'
+      ];
+      
+      const ingredientsOnly = rawReceiptItems.filter(item => 
+        !nonFoodKeywords.some(kw => item.name.includes(kw))
+      );
+      
+      const excludedOnly = rawReceiptItems.filter(item => 
+        nonFoodKeywords.some(kw => item.name.includes(kw))
+      );
+
       return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ textAlign: 'center', marginBottom: '8px' }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 'bold' }}>영수증 인식 결과</h3>
-            <p style={{ color: 'var(--gray-400)', fontSize: '14px' }}>인식된 식재료들을 확인하고 저장하세요.</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto', maxHeight: '70vh' }}>
+          <div style={{ textAlign: 'center', marginBottom: '4px' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: 'var(--text-black)' }}>영수증 인식 결과</h3>
+            <p style={{ color: 'var(--gray-400)', fontSize: '13px' }}>영수증에서 식재료를 자동 분석하고 비식재료를 제외했습니다.</p>
           </div>
           
-          <div style={{ background: '#f9fafb', borderRadius: '8px', border: '1px solid var(--gray-200)', overflow: 'hidden' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--gray-200)', background: '#fff' }}>
-              <span style={{ fontWeight: 'bold' }}>돼지고기 삼겹살</span>
-              <span>600g</span>
+          <div>
+            <h4 style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--primary-color)', marginBottom: '8px' }}>
+              🥬 인식된 식재료 ({ingredientsOnly.length}건) - 카테고리 자동 설정됨
+            </h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '12px', borderRadius: '12px' }}>
+              {ingredientsOnly.map((item, idx) => {
+                const cat = detectCategoryByFoodName(item.name);
+                const icon = getFoodIcon(item.name, cat.name);
+                return (
+                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', padding: '10px 12px', borderRadius: '8px', border: '1px solid #dcfce7' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '20px' }}>{icon}</span>
+                      <div>
+                        <span style={{ fontWeight: 'bold', fontSize: '13.5px', color: 'var(--text-black)' }}>{item.name}</span>
+                        <span style={{ fontSize: '9px', background: '#e0f2ec', color: 'var(--primary-color)', padding: '1px 5px', borderRadius: '4px', marginLeft: '6px', fontWeight: 'bold' }}>
+                          {cat.name}
+                        </span>
+                      </div>
+                    </div>
+                    <span style={{ fontSize: '12.5px', color: 'var(--gray-500)' }}>{item.quantity}</span>
+                  </div>
+                );
+              })}
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--gray-200)', background: '#fff' }}>
-              <span style={{ fontWeight: 'bold' }}>양파</span>
-              <span>1망 (5개)</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--gray-200)', background: '#fff' }}>
-              <span style={{ fontWeight: 'bold' }}>깐마늘</span>
-              <span>200g</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', background: '#fff' }}>
-              <span style={{ fontWeight: 'bold' }}>상추</span>
-              <span>1봉</span>
+          </div>
+
+          <div>
+            <h4 style={{ fontSize: '13px', fontWeight: 'bold', color: '#e53e3e', marginBottom: '8px' }}>
+              🚫 제외된 품목 ({excludedOnly.length}건) - 식재료 아님
+            </h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: '#fff5f5', border: '1px solid #fed7d7', padding: '12px', borderRadius: '12px' }}>
+              {excludedOnly.map((item, idx) => (
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', padding: '10px 12px', borderRadius: '8px', border: '1px solid #fee2e2', opacity: 0.7 }}>
+                  <span style={{ fontSize: '13.5px', color: 'var(--gray-500)', textDecoration: 'line-through' }}>{item.name}</span>
+                  <span style={{ fontSize: '10px', background: '#fee2e2', color: '#e53e3e', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>제외됨</span>
+                </div>
+              ))}
             </div>
           </div>
           
-          <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-            <button className="btn-primary" style={{ flex: 1, background: '#e0f2ec', color: 'var(--primary-color)' }} onClick={() => setStep('camera')}>
+          <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+            <button className="btn-primary" style={{ flex: 1, background: '#f1f5f9', color: 'var(--gray-500)', border: 'none' }} onClick={() => setStep('camera')}>
               다시 촬영
             </button>
             <button className="btn-primary" style={{ flex: 2 }} onClick={handleSave}>
-              모두 저장 (4건)
+              식재료 저장하기 ({ingredientsOnly.length}건)
             </button>
           </div>
         </div>
