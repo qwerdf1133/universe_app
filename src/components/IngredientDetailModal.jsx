@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Calendar, MapPin, Tag, FileText, Trash2, Edit } from 'lucide-react';
+import { getHouseholdData, setHouseholdData } from '../utils/household';
 
 const CATEGORIES = ['채소', '과일', '육류', '수산물', '유제품', '달걀류', '해조류', '곡류', '가공식품', '빵·제과', '음료', '조미료', '발효식품', '소스류', '향신료', '냉동식품', '기타'];
 
@@ -52,9 +53,7 @@ const IngredientDetailModal = ({ isOpen, onClose, ingredient, onReload }) => {
       alert('이름을 입력해 주세요.');
       return;
     }
-    const stored = localStorage.getItem('ingredients');
-    if (!stored) return;
-    let list = JSON.parse(stored);
+    const list = getHouseholdData('ingredients', []);
 
     const index = list.findIndex(item => item.id === ingredient.id);
     if (index !== -1) {
@@ -68,7 +67,7 @@ const IngredientDetailModal = ({ isOpen, onClose, ingredient, onReload }) => {
         memo,
         quantity
       };
-      localStorage.setItem('ingredients', JSON.stringify(list));
+      setHouseholdData('ingredients', list);
       alert('수정되었습니다!');
       setIsEditing(false);
       onReload();
@@ -78,12 +77,10 @@ const IngredientDetailModal = ({ isOpen, onClose, ingredient, onReload }) => {
 
   const handleDelete = () => {
     if (window.confirm('정말 삭제하시겠습니까?')) {
-      const stored = localStorage.getItem('ingredients');
-      if (!stored) return;
-      let list = JSON.parse(stored);
+      const list = getHouseholdData('ingredients', []);
 
       const filtered = list.filter(item => item.id !== ingredient.id);
-      localStorage.setItem('ingredients', JSON.stringify(filtered));
+      setHouseholdData('ingredients', filtered);
       alert('삭제되었습니다!');
       onReload();
       onClose();

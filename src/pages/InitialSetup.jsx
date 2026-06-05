@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getHouseholdData, setHouseholdData } from '../utils/household';
 
 const InitialSetup = () => {
   const navigate = useNavigate();
@@ -16,8 +17,7 @@ const InitialSetup = () => {
   };
 
   const handleComplete = () => {
-    const stored = localStorage.getItem('ingredients');
-    const existing = stored ? JSON.parse(stored) : [];
+    const existing = getHouseholdData('ingredients', []);
     
     const today = new Date();
     const oneYearLater = new Date(today.getFullYear() + 1, today.getMonth(), today.getDate()).toISOString();
@@ -33,7 +33,7 @@ const InitialSetup = () => {
       memo: '기본 양념 소스'
     }));
     
-    localStorage.setItem('ingredients', JSON.stringify([...existing, ...newIngredients]));
+    setHouseholdData('ingredients', [...existing, ...newIngredients]);
     navigate('/home');
   };
 

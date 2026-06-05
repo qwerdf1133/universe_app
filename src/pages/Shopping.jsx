@@ -3,6 +3,7 @@ import Header from '../components/Header';
 import BottomNav from '../components/BottomNav';
 import { Plus, X, CheckSquare, Square, Trash2, User, Copy, ArrowRight, ShoppingBag, Send } from 'lucide-react';
 import { CATEGORIES, detectCategoryByFoodName, getAutoExpiryDate, getFoodIcon } from '../utils/categories';
+import { getHouseholdData, setHouseholdData } from '../utils/household';
 
 const INITIAL_SHOPPING = [];
 const INITIAL_MEMBER_REQUESTS = [];
@@ -123,8 +124,7 @@ const Shopping = () => {
       saveShoppingList(remaining);
 
       // 2. Add to ingredients
-      const storedIngredients = localStorage.getItem('ingredients');
-      let ingredientsList = storedIngredients ? JSON.parse(storedIngredients) : [];
+      const ingredientsList = getHouseholdData('ingredients', []);
 
       checkedItems.forEach(item => {
         const todayStr = new Date().toISOString().split('T')[0];
@@ -160,7 +160,7 @@ const Shopping = () => {
         });
       });
 
-      localStorage.setItem('ingredients', JSON.stringify(ingredientsList));
+      setHouseholdData('ingredients', ingredientsList);
       alert(`구매 완료된 식재료 ${checkedItems.length}건이 냉장고 식재료 목록에 실시간 연동/추가되었습니다!`);
     }
   };

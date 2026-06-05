@@ -362,22 +362,7 @@ const SettingsModal = ({ isOpen, onClose }) => {
                   <span style={{ fontSize: '11px', color: 'var(--gray-400)' }}>ID: {currentUser.id}</span>
                 </div>
 
-                {/* Simulated family members for premium feel */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: '#fff', border: '1px solid var(--gray-200)', borderRadius: '10px', opacity: 0.85 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ fontSize: '20px' }}>👩</span>
-                    <span style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--text-black)' }}>엄마</span>
-                  </div>
-                  <span style={{ fontSize: '11px', color: 'var(--gray-400)' }}>가구원</span>
-                </div>
-                
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: '#fff', border: '1px solid var(--gray-200)', borderRadius: '10px', opacity: 0.85 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ fontSize: '20px' }}>👨</span>
-                    <span style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--text-black)' }}>아빠</span>
-                  </div>
-                  <span style={{ fontSize: '11px', color: 'var(--gray-400)' }}>가구원</span>
-                </div>
+
               </div>
             </div>
           </div>

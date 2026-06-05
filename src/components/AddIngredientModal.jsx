@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Camera, Edit3, Box, Droplet, Snowflake } from 'lucide-react';
 import { CATEGORIES, detectCategoryByFoodName, getAutoExpiryDate, getFoodIcon } from '../utils/categories';
+import { getHouseholdData, setHouseholdData } from '../utils/household';
 
 const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
   const [step, setStep] = useState('select-method'); // 'select-method', 'manual', 'camera', 'camera-result'
@@ -134,12 +135,24 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
     }
 
     const items = finalNames.map(fName => {
-      let finalCat = category ? category.name : '기타';
-      if (!category || category.id === 'auto') {
+      let finalCat = '기타';
+      let autoExp = '';
+      if (isAutoDetect) {
         const detected = detectCategoryByFoodName(fName);
         finalCat = detected.name;
+        autoExp = getAutoExpiryDate(fName, purchaseDate);
+      } else {
+        finalCat = category ? category.name : '기타';
+        if (finalNames.length === 1 && expDate) {
+          autoExp = expDate;
+        } else if (category && category.defaultExpDays !== null) {
+          const pDate = purchaseDate ? new Date(purchaseDate) : new Date();
+          pDate.setDate(pDate.getDate() + category.defaultExpDays);
+          autoExp = pDate.toISOString().split('T')[0];
+        } else {
+          autoExp = expDate || '';
+        }
       }
-      const autoExp = getAutoExpiryDate(fName, purchaseDate);
       
       return {
         id: Date.now() + Math.random(),
@@ -163,8 +176,7 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
       return;
     }
 
-    const stored = localStorage.getItem('ingredients');
-    let list = stored ? JSON.parse(stored) : [];
+    const list = getHouseholdData('ingredients', []);
 
     const itemsToAdd = confirmList.map(item => {
       let finalExp = item.expDate;
@@ -189,8 +201,8 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
       };
     });
 
-    list = [...list, ...itemsToAdd];
-    localStorage.setItem('ingredients', JSON.stringify(list));
+    const updatedList = [...list, ...itemsToAdd];
+    setHouseholdData('ingredients', updatedList);
     alert('저장되었습니다!');
     
     setTags([]);
@@ -202,8 +214,7 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
   };
 
   const handleSave = () => {
-    const stored = localStorage.getItem('ingredients');
-    let list = stored ? JSON.parse(stored) : [];
+    const list = getHouseholdData('ingredients', []);
 
     if (step === 'camera-result') {
       const items = [
@@ -212,7 +223,8 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
         { id: Date.now() + 3, name: '깐마늘', category: '채소', purchaseDate: new Date().toISOString().split('T')[0], expDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), storageLocation: '냉동', memo: '영수증 인식', isFavorite: false },
         { id: Date.now() + 4, name: '상추', category: '채소', purchaseDate: new Date().toISOString().split('T')[0], expDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), storageLocation: '냉장', memo: '영수증 인식', isFavorite: false },
       ];
-      list = [...list, ...items];
+      const updatedList = [...list, ...items];
+      setHouseholdData('ingredients', updatedList);
     } else {
       if (!name.trim()) {
         alert('식재료 이름을 입력해 주세요.');
@@ -250,10 +262,10 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
         memo,
         isFavorite: false
       };
-      list.push(newIngredient);
+      const updatedList = [...list, newIngredient];
+      setHouseholdData('ingredients', updatedList);
     }
 
-    localStorage.setItem('ingredients', JSON.stringify(list));
     alert('저장되었습니다!');
     if (onSave) onSave();
     handleClose();

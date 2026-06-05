@@ -6,6 +6,7 @@ import { getPostposition } from '../utils/korean';
 import { Flame, Check, X, AlertCircle, ArrowLeft, ArrowRight, BookOpen, Utensils, HelpCircle, Search, ShoppingCart, Plus } from 'lucide-react';
 import { fetchRecipes } from '../utils/api';
 import { parseIngredientsList, detectCategoryByFoodName } from '../utils/categories';
+import { getHouseholdData, setHouseholdData } from '../utils/household';
 
 const RECIPES = [
   {
@@ -294,8 +295,7 @@ const Cooking = () => {
 
   const loadData = async (cat = '전체', search = '') => {
     setIsFetching(true);
-    let stored = localStorage.getItem('ingredients');
-    let list = stored ? JSON.parse(stored) : [];
+    const list = getHouseholdData('ingredients', []);
     setIngredients(list);
 
     const today = new Date();
@@ -402,7 +402,7 @@ const Cooking = () => {
     if (!pendingRecipe) return;
     
     // Recalculate matchedOwnedItems with latest refrigerator state
-    const latestIngredients = JSON.parse(localStorage.getItem('ingredients') || '[]');
+    const latestIngredients = getHouseholdData('ingredients', []);
     const matchIngredientsSafe = pendingRecipe.matchIngredients || [];
     const matchedOwnedItems = latestIngredients.filter(item => 
       matchIngredientsSafe.some(m => 
@@ -419,10 +419,19 @@ const Cooking = () => {
     setPendingRecipe(null);
     setActiveStep(0); // Step 0: 전체 재료 확인
 
-    // Initialize usage checklist (default: checked "모두 사용함" for owned items)
+    // Initialize usage checklist (default: checked "모두 사용함" for owned items, except sauces/seasonings which default to false / kept)
     const initialCheck = {};
     matchedOwnedItems.forEach(item => {
-      initialCheck[item.id] = true; // default true = delete/fully used
+      const cat = (item.category || '').trim();
+      const isSauce = cat === '소스류' || 
+                      cat === '조미료' || 
+                      cat === '발효식품' || 
+                      cat === '소스/양념' || 
+                      cat === '향신료' || 
+                      cat.includes('소스') || 
+                      cat.includes('양념') || 
+                      cat.includes('조미료');
+      initialCheck[item.id] = !isSauce; // true means "fully used" (delete), false means "leftover" (remain/keep)
     });
     setUsageChecklist(initialCheck);
     
@@ -443,8 +452,7 @@ const Cooking = () => {
   const handleCompleteCooking = () => {
     if (!selectedRecipe) return;
 
-    const stored = localStorage.getItem('ingredients');
-    const list = stored ? JSON.parse(stored) : [];
+    const list = getHouseholdData('ingredients', []);
 
     const leftovers = [];
     const used = [];
@@ -468,7 +476,7 @@ const Cooking = () => {
       return true; // keep
     });
 
-    localStorage.setItem('ingredients', JSON.stringify(updatedIngredients));
+    setHouseholdData('ingredients', updatedIngredients);
     
     // Set result screen data
     setCookingResult({
