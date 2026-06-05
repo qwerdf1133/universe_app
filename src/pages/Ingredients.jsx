@@ -197,7 +197,9 @@ const Ingredients = () => {
                     
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-                        <span style={{ fontWeight: 'bold', color: isExpired ? '#c53030' : 'var(--text-black)' }}>{item.name}</span>
+                        <span style={{ fontWeight: 'bold', color: isExpired ? '#c53030' : 'var(--text-black)' }}>
+                          {item.name} {item.quantity && <span style={{ fontSize: '12px', color: 'var(--gray-500)', fontWeight: 'normal' }}>({item.quantity})</span>}
+                        </span>
                         <span style={{ fontSize: '10px', background: isExpired ? '#fed7d7' : '#e0f2ec', color: isExpired ? '#9b2c2c' : 'var(--primary-color)', padding: '2px 6px', borderRadius: '4px' }}>
                           {item.storageLocation}
                         </span>

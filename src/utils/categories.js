@@ -76,3 +76,62 @@ export const getFoodIcon = (name, category) => {
   if (category === '냉동식품') return '❄️';
   return '📦';
 };
+
+export const parseIngredientsList = (ingredientsStr) => {
+  if (!ingredientsStr) return [];
+  // Split by comma or newline
+  const rawItems = ingredientsStr.split(/,|\n/);
+  const result = [];
+  for (let raw of rawItems) {
+    let text = raw.trim();
+    if (!text) continue;
+    
+    // Remove headers like ●주재료 :, ●양념장 :, [1인분], ·, *, etc.
+    text = text.replace(/●[^:]+:/g, '');
+    text = text.replace(/\[[^\]]+\]/g, '');
+    text = text.replace(/^[·\*\-\s:\+]+/g, '');
+    text = text.trim();
+    if (!text) continue;
+
+    // Check if the text is just a category separator or header
+    if (text.match(/^(주재료|부재료|양념|소스|밑간|고명|양념장|재료|준비물)$/)) {
+      continue;
+    }
+
+    // Match name and quantity
+    const quantMatch = text.match(/^(.*?)\s+(\d.*|약간.*|적당량.*|한꼬집.*|조금.*|취향껏.*|적당히.*)$/);
+    if (quantMatch) {
+      const cleanName = quantMatch[1].trim();
+      const quantity = quantMatch[2].trim();
+      if (cleanName) {
+        result.push({
+          cleanName,
+          quantity,
+          fullName: `${cleanName} ${quantity}`
+        });
+        continue;
+      }
+    }
+
+    const digitMatch = text.match(/^(.*?)(\d.*)$/);
+    if (digitMatch) {
+      const cleanName = digitMatch[1].trim();
+      const quantity = digitMatch[2].trim();
+      if (cleanName) {
+        result.push({
+          cleanName,
+          quantity,
+          fullName: `${cleanName} ${quantity}`
+        });
+        continue;
+      }
+    }
+
+    result.push({
+      cleanName: text,
+      quantity: '',
+      fullName: text
+    });
+  }
+  return result;
+};

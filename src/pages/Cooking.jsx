@@ -5,6 +5,7 @@ import BottomNav from '../components/BottomNav';
 import { getPostposition } from '../utils/korean';
 import { Flame, Check, X, AlertCircle, ArrowLeft, ArrowRight, BookOpen, Utensils, HelpCircle, Search, ShoppingCart, Plus } from 'lucide-react';
 import { fetchRecipes } from '../utils/api';
+import { parseIngredientsList, detectCategoryByFoodName } from '../utils/categories';
 
 const RECIPES = [
   {
@@ -289,6 +290,7 @@ const Cooking = () => {
   const [showChecklist, setShowChecklist] = useState(false);
   const [usageChecklist, setUsageChecklist] = useState({}); // { ingredientId: true/false }
   const [cookingResult, setCookingResult] = useState(null); // { name: '', leftovers: [], used: [] }
+  const [selectedForPurchase, setSelectedForPurchase] = useState({}); // { ingredientFullName: true/false }
 
   const loadData = async (cat = '전체', search = '') => {
     setIsFetching(true);
@@ -314,14 +316,23 @@ const Cooking = () => {
     
     // Fallback to dummy if no results and no search/category, or just to show something
     if (!fetched || fetched.length === 0) {
+      let rawDummy = [];
       if (!search && !apiCategory) {
-        fetched = RECIPES;
+        rawDummy = RECIPES;
       } else {
-        fetched = RECIPES.filter(r => 
+        rawDummy = RECIPES.filter(r => 
           (!search || r.name.toLowerCase().includes(search.toLowerCase()) || r.ingredients.toLowerCase().includes(search.toLowerCase())) &&
           (!apiCategory || r.category === apiCategory)
         );
       }
+      fetched = rawDummy.map(r => {
+        const parsed = parseIngredientsList(r.ingredients);
+        return {
+          ...r,
+          parsedIngredients: parsed,
+          matchIngredients: parsed.map(p => p.cleanName)
+        };
+      });
     }
     setAllRecipes(fetched);
 
@@ -418,6 +429,7 @@ const Cooking = () => {
     setIsDetailOpen(true);
     setShowChecklist(false);
     setCookingResult(null);
+    setSelectedForPurchase({});
   };
 
   const handleToggleCheck = (itemId) => {
@@ -477,26 +489,50 @@ const Cooking = () => {
     setActiveStep(0);
   };
 
-  const handleAddToShoppingList = (ingredientName) => {
-    const stored = localStorage.getItem('shopping-list');
-    const list = stored ? JSON.parse(stored) : [];
-    
-    // Check if already exists
-    if (list.some(item => item.name === ingredientName)) {
-      alert(`'${ingredientName}'은(는) 이미 장보기 목록에 있습니다.`);
+  const handleTogglePurchaseSelect = (fullName) => {
+    setSelectedForPurchase(prev => ({
+      ...prev,
+      [fullName]: !prev[fullName]
+    }));
+  };
+
+  const handleBatchAddToShopping = (missingItems) => {
+    const selectedList = missingItems.filter(p => selectedForPurchase[p.fullName]);
+    if (selectedList.length === 0) {
+      alert('장바구니에 담을 식재료를 먼저 선택해 주세요.');
       return;
     }
 
-    list.push({
-      id: Date.now() + Math.random(),
-      name: ingredientName,
-      category: '기타',
-      memo: `${selectedRecipe.name} 요리를 위해 추가됨`,
-      checked: false
+    const stored = localStorage.getItem('shopping-list');
+    const list = stored ? JSON.parse(stored) : [];
+    
+    let addedCount = 0;
+    let skippedCount = 0;
+
+    selectedList.forEach(p => {
+      if (list.some(item => item.name.toLowerCase() === p.cleanName.toLowerCase())) {
+        skippedCount++;
+        return;
+      }
+      list.push({
+        id: Date.now() + Math.random(),
+        name: p.cleanName,
+        category: detectCategoryByFoodName(p.cleanName).name,
+        memo: `${selectedRecipe.name} 요리를 위해 추가됨 (${p.quantity || '적당량'})`,
+        checked: false
+      });
+      addedCount++;
     });
 
     localStorage.setItem('shopping-list', JSON.stringify(list));
-    alert(`'${ingredientName}'을(를) 장보기 목록에 추가했습니다!`);
+    
+    let msg = `선택한 ${selectedList.length}개 중 ${addedCount}개의 재료를 장보기 목록에 추가했습니다!`;
+    if (skippedCount > 0) {
+      msg += ` (${skippedCount}개는 이미 존재하여 제외됨)`;
+    }
+    alert(msg);
+    
+    setSelectedForPurchase({});
   };
 
   return (
@@ -995,32 +1031,77 @@ const Cooking = () => {
 
                     {/* Missing inventory highlight inside Step 0 */}
                     {(() => {
-                      const missingIngredients = selectedRecipe.matchIngredients.filter(m => 
+                      const missingItems = (selectedRecipe.parsedIngredients || []).filter(p => 
                         !selectedRecipe.matchedOwnedItems.some(item => 
-                          item.name.toLowerCase().includes(m.toLowerCase()) || m.toLowerCase().includes(item.name.toLowerCase())
+                          item.name.toLowerCase().includes(p.cleanName.toLowerCase()) || 
+                          p.cleanName.toLowerCase().includes(item.name.toLowerCase())
                         )
                       );
 
-                      if (missingIngredients.length > 0) {
+                      if (missingItems.length > 0) {
+                        const selectedCount = Object.keys(selectedForPurchase).filter(k => selectedForPurchase[k]).length;
                         return (
-                          <div style={{ marginTop: '8px' }}>
-                            <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', color: '#e53e3e', marginBottom: '8px' }}>
-                              부족한 식재료 (장보기 필요)
+                          <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', color: '#e53e3e', marginBottom: '4px' }}>
+                              부족한 식재료 (클릭 시 선택 / 주황색 네모)
                             </label>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', background: '#fff5f5', border: '1px solid #feb2b2', padding: '12px', borderRadius: '12px' }}>
-                              {missingIngredients.map((m, idx) => (
-                                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#ffffff', border: '1px solid #fc8181', padding: '3px 8px', borderRadius: '6px' }}>
-                                  <span style={{ fontSize: '11px', color: '#c53030', fontWeight: 'bold' }}>{m}</span>
-                                  <button 
-                                    onClick={() => handleAddToShoppingList(m)}
-                                    style={{ background: 'none', border: 'none', padding: '2px', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#e53e3e' }}
-                                    title="장바구니 추가"
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', background: '#fff5f5', border: '1px solid #feb2b2', padding: '12px', borderRadius: '12px' }}>
+                              {missingItems.map((p, idx) => {
+                                const isSelected = !!selectedForPurchase[p.fullName];
+                                return (
+                                  <div 
+                                    key={idx} 
+                                    onClick={() => handleTogglePurchaseSelect(p.fullName)}
+                                    style={{ 
+                                      display: 'flex', 
+                                      alignItems: 'center', 
+                                      gap: '6px', 
+                                      background: isSelected ? '#fffaf0' : '#ffffff', 
+                                      border: isSelected ? '1.8px solid #f97316' : '1px solid #fc8181', 
+                                      padding: '5px 10px', 
+                                      borderRadius: '8px',
+                                      cursor: 'pointer',
+                                      userSelect: 'none',
+                                      transition: 'all 0.15s',
+                                      boxShadow: isSelected ? '0 2px 4px rgba(249,115,22,0.1)' : 'none'
+                                    }}
                                   >
-                                    <ShoppingCart size={12} />
-                                  </button>
-                                </div>
-                              ))}
+                                    <span style={{ 
+                                      fontSize: '11px', 
+                                      color: isSelected ? '#ea580c' : '#c53030', 
+                                      fontWeight: 'bold' 
+                                    }}>
+                                      {p.fullName}
+                                    </span>
+                                    {isSelected && <span style={{ fontSize: '10px', color: '#ea580c' }}>✓</span>}
+                                  </div>
+                                );
+                              })}
                             </div>
+                            
+                            <button
+                              onClick={() => handleBatchAddToShopping(missingItems)}
+                              className="btn-primary"
+                              style={{
+                                width: '100%',
+                                background: selectedCount > 0 ? 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)' : '#cbd5e1',
+                                color: '#ffffff',
+                                border: 'none',
+                                borderRadius: '10px',
+                                padding: '10px',
+                                fontSize: '13px',
+                                fontWeight: 'bold',
+                                cursor: selectedCount > 0 ? 'pointer' : 'not-allowed',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                                boxShadow: selectedCount > 0 ? '0 4px 6px rgba(249,115,22,0.15)' : 'none'
+                              }}
+                              disabled={selectedCount === 0}
+                            >
+                              <ShoppingCart size={15} /> 선택한 재료 장바구니에 담기 ({selectedCount}개 선택됨)
+                            </button>
                           </div>
                         );
                       }

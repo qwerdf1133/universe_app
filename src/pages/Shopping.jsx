@@ -16,6 +16,9 @@ const Shopping = () => {
 
   // Simplified Add Form State
   const [name, setName] = useState('');
+  const [tags, setTags] = useState([]);
+  const [showConfirmPopup, setShowConfirmPopup] = useState(false);
+  const [confirmList, setConfirmList] = useState([]);
   const [category, setCategory] = useState(CATEGORIES[0]); // '자동 설정' is default!
   const [isAutoDetect, setIsAutoDetect] = useState(true);
   const [memo, setMemo] = useState('');
@@ -42,6 +45,7 @@ const Shopping = () => {
 
   const handleCloseModal = () => {
     setName('');
+    setTags([]);
     setCategory(CATEGORIES[0]);
     setIsAutoDetect(true);
     setMemo('');
@@ -151,6 +155,7 @@ const Shopping = () => {
           expDate: finalExp,
           storageLocation: storage,
           memo: item.memo || '장보기 구매 완료',
+          quantity: item.quantity || '1개',
           isFavorite: false
         });
       });
@@ -160,34 +165,96 @@ const Shopping = () => {
     }
   };
 
-  // Add Item Manually or Create Member Request
-  const handleAddItem = () => {
-    if (!name.trim()) {
+  const handleNameChangeWithTags = (e) => {
+    const value = e.target.value;
+    if (value.includes(',')) {
+      const parts = value.split(',');
+      const newTags = parts.slice(0, -1).map(p => p.trim()).filter(Boolean);
+      if (newTags.length > 0) {
+        setTags(prev => {
+          const unique = newTags.filter(t => !prev.includes(t));
+          return [...prev, ...unique];
+        });
+      }
+      const lastPart = parts[parts.length - 1];
+      setName(lastPart);
+    } else {
+      setName(value);
+      if (isAutoDetect) {
+        const detected = detectCategoryByFoodName(value);
+        setCategory(detected);
+      }
+    }
+  };
+
+  const handleAddCurrentNameToTag = () => {
+    const trimmed = name.trim();
+    if (trimmed) {
+      setTags(prev => {
+        if (!prev.includes(trimmed)) {
+          return [...prev, trimmed];
+        }
+        return prev;
+      });
+      setName('');
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddCurrentNameToTag();
+    }
+  };
+
+  const handleBlur = () => {
+    handleAddCurrentNameToTag();
+  };
+
+  const handleOpenConfirmPopup = () => {
+    const finalNames = [...tags, name.trim()].map(t => t.trim()).filter(Boolean);
+    if (finalNames.length === 0) {
       alert('식재료 이름을 입력해 주세요.');
       return;
     }
 
-    let finalCat = category ? category.name : '기타';
-    if (!category || category.id === 'auto') {
-      finalCat = detectCategoryByFoodName(name).name;
-    } else if (category.id === 'other') {
-      finalCat = '기타';
+    const items = finalNames.map(fName => {
+      let finalCat = category ? category.name : '기타';
+      if (!category || category.id === 'auto') {
+        finalCat = detectCategoryByFoodName(fName).name;
+      }
+      return {
+        id: Date.now() + Math.random(),
+        name: fName,
+        category: finalCat,
+        qty: '1개',
+        memo: memo || ''
+      };
+    });
+
+    setConfirmList(items);
+    setShowConfirmPopup(true);
+  };
+
+  const handleConfirmSave = () => {
+    if (confirmList.length === 0) {
+      alert('추가할 식재료가 없습니다.');
+      return;
     }
 
     if (modalTab === 'add-item') {
-      // Add to My Shopping List
-      const newItem = {
-        id: Date.now(),
-        name,
-        category: finalCat,
-        memo,
+      const newItems = confirmList.map(item => ({
+        id: item.id,
+        name: item.name,
+        category: item.category,
+        memo: item.memo ? `수량: ${item.qty}, ${item.memo}` : `수량: ${item.qty}`,
+        quantity: item.qty,
         checked: false
-      };
-      const updated = [...shoppingList, newItem];
+      }));
+      const updated = [...shoppingList, ...newItems];
       saveShoppingList(updated);
-      alert(`"${name}"이(가) 내 장보기 목록에 추가되었습니다.`);
+      alert(`장보기 목록에 ${confirmList.length}건이 추가되었습니다.`);
     } else {
-      // Add to Member Requests List (requested by currentUser with dynamic avatar)
       const currentUserStr = localStorage.getItem('currentUser');
       const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
       const nickname = currentUser ? currentUser.nickname : '나';
@@ -196,25 +263,27 @@ const Shopping = () => {
       const charCodeSum = nickname.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
       const avatar = avatars[charCodeSum % avatars.length];
 
-      const newRequest = {
-        id: Date.now(),
-        name,
-        category: finalCat,
-        qty: memo || '1개',
+      const newRequests = confirmList.map(item => ({
+        id: item.id,
+        name: item.name,
+        category: item.category,
+        qty: item.qty || '1개',
         checked: false,
         requester: nickname,
-        avatar: avatar
-      };
-      const updated = [...memberRequests, newRequest];
+        avatar: avatar,
+        memo: item.memo || ''
+      }));
+      const updated = [...memberRequests, ...newRequests];
       saveMemberRequests(updated);
-      alert(`"${name}" 장보기 요청이 등록되었습니다.`);
+      alert(`장보기 요청이 ${confirmList.length}건 등록되었습니다.`);
     }
 
-    // Reset Form
+    setTags([]);
     setName('');
+    setMemo('');
     setCategory(CATEGORIES[0]);
     setIsAutoDetect(true);
-    setMemo('');
+    setShowConfirmPopup(false);
     setIsModalOpen(false);
   };
 
@@ -734,13 +803,45 @@ const Shopping = () => {
             {/* Modal Interactive Fields Form */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>식재료 이름</label>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>식재료 이름 (쉼표로 구분하여 여러 개 입력 가능)</label>
+                {tags.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
+                    {tags.map((tag, idx) => (
+                      <span 
+                        key={idx} 
+                        style={{ 
+                          fontSize: '11px', 
+                          background: '#e0f2ec', 
+                          color: 'var(--primary-color)', 
+                          border: '1px solid var(--primary-color)', 
+                          padding: '3px 8px', 
+                          borderRadius: '6px', 
+                          fontWeight: 'bold', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '4px' 
+                        }}
+                      >
+                        {tag}
+                        <button 
+                          type="button"
+                          onClick={() => setTags(prev => prev.filter((_, i) => i !== idx))}
+                          style={{ background: 'none', border: 'none', color: 'var(--primary-color)', cursor: 'pointer', padding: 0, fontSize: '11px', fontWeight: 'bold' }}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <input 
                   type="text" 
                   className="input-field" 
-                  placeholder="예: 계란, 대파, 두부" 
+                  placeholder="예: 계란, 대파, 두부 (쉼표 또는 Enter 입력)" 
                   value={name}
-                  onChange={handleNameChange}
+                  onChange={handleNameChangeWithTags}
+                  onKeyDown={handleKeyDown}
+                  onBlur={handleBlur}
                 />
               </div>
 
@@ -812,7 +913,6 @@ const Shopping = () => {
                 />
               </div>
 
-              {/* Submit Buttons */}
               <button 
                 className="btn-primary" 
                 style={{ 
@@ -822,7 +922,7 @@ const Shopping = () => {
                   justifyContent: 'center', 
                   gap: '6px' 
                 }} 
-                onClick={handleAddItem}
+                onClick={handleOpenConfirmPopup}
               >
                 {modalTab === 'add-item' ? <ShoppingBag size={18} /> : <Send size={18} />}
                 {modalTab === 'add-item' ? '장바구니 추가' : '구성원 요청 발송'}
@@ -830,6 +930,121 @@ const Shopping = () => {
             </div>
           </div>
         </>
+      )}
+
+      {showConfirmPopup && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1100,
+          display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center',
+          animation: 'fadeIn 0.2s ease-out'
+        }}>
+          <div style={{
+            backgroundColor: '#FFFFFF',
+            width: '90%',
+            maxWidth: '420px',
+            borderRadius: '20px',
+            padding: '24px 20px',
+            boxSizing: 'border-box',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+            maxHeight: '80vh',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+            animation: 'scaleUp 0.2s ease-out'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--gray-200)', paddingBottom: '12px' }}>
+              <h3 style={{ fontSize: '17px', fontWeight: 'bold', color: 'var(--text-black)', margin: 0 }}>
+                {modalTab === 'add-item' ? '장보기 식재료 추가 확인' : '장보기 요청 확인'}
+              </h3>
+              <button onClick={() => setShowConfirmPopup(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-400)' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: '12px', color: 'var(--gray-500)', margin: 0 }}>
+              최종 추가하기 전 수량(요구량)과 메모를 확인해 주세요.
+            </p>
+
+            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', paddingRight: '4px' }}>
+              {confirmList.map((item, idx) => {
+                const icon = getFoodIcon(item.name, item.category);
+                return (
+                  <div key={item.id} style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid var(--gray-200)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '24px' }}>{icon}</span>
+                        <div>
+                          <strong style={{ fontSize: '14px', color: 'var(--text-black)' }}>{item.name}</strong>
+                          <span style={{ fontSize: '10px', background: '#e0f2ec', color: 'var(--primary-color)', padding: '1px 5px', borderRadius: '4px', marginLeft: '6px', fontWeight: 'bold' }}>
+                            {item.category}
+                          </span>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => setConfirmList(prev => prev.filter(c => c.id !== item.id))}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#e53e3e', padding: '2px' }}
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ display: 'block', fontSize: '11px', color: 'var(--gray-500)', marginBottom: '4px' }}>수량 / 요구량</label>
+                        <input 
+                          type="text" 
+                          className="input-field" 
+                          style={{ padding: '6px 8px', fontSize: '12px', height: 'auto' }}
+                          value={item.qty}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setConfirmList(prev => prev.map(c => c.id === item.id ? { ...c, qty: val } : c));
+                          }}
+                        />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ display: 'block', fontSize: '11px', color: 'var(--gray-500)', marginBottom: '4px' }}>메모</label>
+                        <input 
+                          type="text" 
+                          className="input-field" 
+                          style={{ padding: '6px 8px', fontSize: '12px', height: 'auto' }}
+                          value={item.memo}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setConfirmList(prev => prev.map(c => c.id === item.id ? { ...c, memo: val } : c));
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+              <button 
+                onClick={() => setShowConfirmPopup(false)}
+                style={{
+                  flex: 1, padding: '12px', background: '#f1f5f9', border: 'none', borderRadius: '10px',
+                  fontSize: '13px', fontWeight: 'bold', color: 'var(--gray-500)', cursor: 'pointer'
+                }}
+              >
+                취소
+              </button>
+              <button 
+                onClick={handleConfirmSave}
+                style={{
+                  flex: 2, padding: '12px', background: 'var(--primary-color)', border: 'none', borderRadius: '10px',
+                  fontSize: '13px', fontWeight: 'bold', color: '#ffffff', cursor: 'pointer',
+                  boxShadow: '0 4px 6px rgba(55,146,113,0.2)'
+                }}
+              >
+                {modalTab === 'add-item' ? '장바구니 추가' : '요청 발송'} ({confirmList.length}건)
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <BottomNav />

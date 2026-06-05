@@ -13,6 +13,7 @@ const IngredientDetailModal = ({ isOpen, onClose, ingredient, onReload }) => {
   const [expDate, setExpDate] = useState(ingredient.expDate ? ingredient.expDate.split('T')[0] : '');
   const [storageLocation, setStorageLocation] = useState(ingredient.storageLocation);
   const [memo, setMemo] = useState(ingredient.memo || '');
+  const [quantity, setQuantity] = useState(ingredient.quantity || '1개');
 
   // Helper for Category Colors/Icons
   const getFoodIcon = (name, category) => {
@@ -64,7 +65,8 @@ const IngredientDetailModal = ({ isOpen, onClose, ingredient, onReload }) => {
         purchaseDate,
         expDate: expDate ? new Date(expDate).toISOString() : '',
         storageLocation,
-        memo
+        memo,
+        quantity
       };
       localStorage.setItem('ingredients', JSON.stringify(list));
       alert('수정되었습니다!');
@@ -195,6 +197,17 @@ const IngredientDetailModal = ({ isOpen, onClose, ingredient, onReload }) => {
             </div>
 
             <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: 'bold', fontSize: '14px' }}>수량</label>
+              <input 
+                type="text" 
+                className="input-field" 
+                value={quantity} 
+                onChange={(e) => setQuantity(e.target.value)} 
+                placeholder="예: 2개, 500g 등"
+              />
+            </div>
+
+            <div>
               <label style={{ display: 'block', marginBottom: '6px', fontWeight: 'bold', fontSize: '14px' }}>메모</label>
               <input 
                 type="text" 
@@ -254,6 +267,12 @@ const IngredientDetailModal = ({ isOpen, onClose, ingredient, onReload }) => {
                 <MapPin size={18} color="var(--gray-400)" />
                 <span style={{ color: 'var(--gray-500)', width: '70px', fontSize: '14px' }}>보관위치</span>
                 <span style={{ fontWeight: '500', fontSize: '14px' }}>{storageLocation}</span>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <Tag size={18} color="var(--gray-400)" />
+                <span style={{ color: 'var(--gray-500)', width: '70px', fontSize: '14px' }}>수량</span>
+                <span style={{ fontWeight: '500', fontSize: '14px' }}>{ingredient.quantity || '1개'}</span>
               </div>
 
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>

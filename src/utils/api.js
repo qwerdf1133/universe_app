@@ -1,4 +1,5 @@
 // Food Safety Korea API Utility
+import { parseIngredientsList } from './categories';
 
 const API_KEY = '2769a878073d4c44a540'; 
 const SERVICE_ID = 'COOKRCP01';
@@ -55,6 +56,8 @@ export const fetchRecipes = async (startIdx = 1, endIdx = 20, recipeName = '', c
             }
           }
 
+          const parsed = item.RCP_PARTS_DTLS ? parseIngredientsList(item.RCP_PARTS_DTLS) : [];
+
           return {
             id: item.RCP_SEQ,
             name: item.RCP_NM,
@@ -62,7 +65,8 @@ export const fetchRecipes = async (startIdx = 1, endIdx = 20, recipeName = '', c
             weight: item.INFO_WGT || '',
             hashTag: item.HASH_TAG || '',
             ingredients: item.RCP_PARTS_DTLS,
-            matchIngredients: item.RCP_PARTS_DTLS ? item.RCP_PARTS_DTLS.split(/[\s,\(\)\[\]]/).filter(s => s.length > 1) : [],
+            parsedIngredients: parsed,
+            matchIngredients: parsed.map(p => p.cleanName),
             difficulty: '보통',
             emoji: '🥘',
             imageBg: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',

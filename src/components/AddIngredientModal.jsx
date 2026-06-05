@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { X, Camera, Edit3, Box, Droplet, Snowflake } from 'lucide-react';
-import { CATEGORIES, detectCategoryByFoodName, getAutoExpiryDate } from '../utils/categories';
+import { CATEGORIES, detectCategoryByFoodName, getAutoExpiryDate, getFoodIcon } from '../utils/categories';
 
 const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
   const [step, setStep] = useState('select-method'); // 'select-method', 'manual', 'camera', 'camera-result'
   
   // Manual Entry State
   const [name, setName] = useState('');
+  const [tags, setTags] = useState([]);
+  const [showConfirmPopup, setShowConfirmPopup] = useState(false);
+  const [confirmList, setConfirmList] = useState([]);
   const [category, setCategory] = useState(CATEGORIES[0]); // '자동 설정' is default!
   const [isAutoDetect, setIsAutoDetect] = useState(true);
   const [purchaseDate, setPurchaseDate] = useState(new Date().toISOString().split('T')[0]);
@@ -22,6 +25,7 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
   const handleClose = () => {
     setStep('select-method');
     setName('');
+    setTags([]);
     setCategory(CATEGORIES[0]);
     setIsAutoDetect(true);
     setPurchaseDate(new Date().toISOString().split('T')[0]);
@@ -69,20 +73,132 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
     }
   };
 
-  const handleNameChange = (e) => {
-    const newName = e.target.value;
-    setName(newName);
-    if (isAutoDetect) {
-      const detected = detectCategoryByFoodName(newName);
-      setCategory(detected);
-      if (detected.defaultExpDays !== null && purchaseDate) {
-        const pDate = new Date(purchaseDate);
-        pDate.setDate(pDate.getDate() + detected.defaultExpDays);
-        setExpDate(pDate.toISOString().split('T')[0]);
-      } else {
-        setExpDate('');
+  const handleNameChangeWithTags = (e) => {
+    const value = e.target.value;
+    if (value.includes(',')) {
+      const parts = value.split(',');
+      const newTags = parts.slice(0, -1).map(p => p.trim()).filter(Boolean);
+      if (newTags.length > 0) {
+        setTags(prev => {
+          const unique = newTags.filter(t => !prev.includes(t));
+          return [...prev, ...unique];
+        });
+      }
+      const lastPart = parts[parts.length - 1];
+      setName(lastPart);
+    } else {
+      setName(value);
+      if (isAutoDetect) {
+        const detected = detectCategoryByFoodName(value);
+        setCategory(detected);
+        if (detected.defaultExpDays !== null && purchaseDate) {
+          const pDate = new Date(purchaseDate);
+          pDate.setDate(pDate.getDate() + detected.defaultExpDays);
+          setExpDate(pDate.toISOString().split('T')[0]);
+        } else {
+          setExpDate('');
+        }
       }
     }
+  };
+
+  const handleAddCurrentNameToTag = () => {
+    const trimmed = name.trim();
+    if (trimmed) {
+      setTags(prev => {
+        if (!prev.includes(trimmed)) {
+          return [...prev, trimmed];
+        }
+        return prev;
+      });
+      setName('');
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddCurrentNameToTag();
+    }
+  };
+
+  const handleBlur = () => {
+    handleAddCurrentNameToTag();
+  };
+
+  const handleOpenConfirmPopup = () => {
+    const finalNames = [...tags, name.trim()].map(t => t.trim()).filter(Boolean);
+    if (finalNames.length === 0) {
+      alert('식재료 이름을 입력해 주세요.');
+      return;
+    }
+
+    const items = finalNames.map(fName => {
+      let finalCat = category ? category.name : '기타';
+      if (!category || category.id === 'auto') {
+        const detected = detectCategoryByFoodName(fName);
+        finalCat = detected.name;
+      }
+      const autoExp = getAutoExpiryDate(fName, purchaseDate);
+      
+      return {
+        id: Date.now() + Math.random(),
+        name: fName,
+        category: finalCat,
+        purchaseDate,
+        expDate: autoExp || '',
+        storageLocation,
+        memo,
+        quantity: '1개'
+      };
+    });
+
+    setConfirmList(items);
+    setShowConfirmPopup(true);
+  };
+
+  const handleConfirmSave = () => {
+    if (confirmList.length === 0) {
+      alert('추가할 식재료가 없습니다.');
+      return;
+    }
+
+    const stored = localStorage.getItem('ingredients');
+    let list = stored ? JSON.parse(stored) : [];
+
+    const itemsToAdd = confirmList.map(item => {
+      let finalExp = item.expDate;
+      if (finalExp) {
+        if (finalExp.indexOf('T') === -1) {
+          finalExp = new Date(finalExp).toISOString();
+        }
+      } else {
+        finalExp = '';
+      }
+
+      return {
+        id: item.id,
+        name: item.name,
+        category: item.category,
+        purchaseDate: item.purchaseDate,
+        expDate: finalExp,
+        storageLocation: item.storageLocation,
+        memo: item.memo,
+        quantity: item.quantity,
+        isFavorite: false
+      };
+    });
+
+    list = [...list, ...itemsToAdd];
+    localStorage.setItem('ingredients', JSON.stringify(list));
+    alert('저장되었습니다!');
+    
+    setTags([]);
+    setName('');
+    setShowConfirmPopup(false);
+    
+    if (onSave) onSave();
+    handleClose();
   };
 
   const handleSave = () => {
@@ -178,13 +294,45 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto', maxHeight: '70vh', padding: '4px' }}>
           <div>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>식재료 이름</label>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>식재료 이름 (쉼표로 구분하여 여러 개 입력 가능)</label>
+            {tags.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
+                {tags.map((tag, idx) => (
+                  <span 
+                    key={idx} 
+                    style={{ 
+                      fontSize: '11px', 
+                      background: '#e0f2ec', 
+                      color: 'var(--primary-color)', 
+                      border: '1px solid var(--primary-color)', 
+                      padding: '3px 8px', 
+                      borderRadius: '6px', 
+                      fontWeight: 'bold', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '4px' 
+                    }}
+                  >
+                    {tag}
+                    <button 
+                      type="button"
+                      onClick={() => setTags(prev => prev.filter((_, i) => i !== idx))}
+                      style={{ background: 'none', border: 'none', color: 'var(--primary-color)', cursor: 'pointer', padding: 0, fontSize: '11px', fontWeight: 'bold' }}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
             <input 
               type="text" 
               className="input-field" 
-              placeholder="예: 돼지고기 목살" 
+              placeholder="예: 소고기, 우유, 달걀 (쉼표 또는 Enter 입력)" 
               value={name}
-              onChange={handleNameChange}
+              onChange={handleNameChangeWithTags}
+              onKeyDown={handleKeyDown}
+              onBlur={handleBlur}
             />
           </div>
 
@@ -309,7 +457,7 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
             />
           </div>
 
-          <button className="btn-primary" style={{ marginTop: '16px' }} onClick={handleSave}>
+          <button className="btn-primary" style={{ marginTop: '16px' }} onClick={handleOpenConfirmPopup}>
             저장
           </button>
         </div>
@@ -440,6 +588,122 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
         
         {renderContent()}
       </div>
+
+      {/* Confirmation Popup */}
+      {showConfirmPopup && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1100,
+          display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center',
+          animation: 'fadeIn 0.2s ease-out'
+        }}>
+          <div style={{
+            backgroundColor: '#FFFFFF',
+            width: '90%',
+            maxWidth: '420px',
+            borderRadius: '20px',
+            padding: '24px 20px',
+            boxSizing: 'border-box',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+            maxHeight: '80vh',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+            animation: 'scaleUp 0.2s ease-out'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--gray-200)', paddingBottom: '12px' }}>
+              <h3 style={{ fontSize: '17px', fontWeight: 'bold', color: 'var(--text-black)', margin: 0 }}>
+                식재료 추가 확인
+              </h3>
+              <button onClick={() => setShowConfirmPopup(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-400)' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: '12px', color: 'var(--gray-500)', margin: 0 }}>
+              냉장고에 넣기 전 수량과 유통기한을 확인해 주세요.
+            </p>
+
+            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', paddingRight: '4px' }}>
+              {confirmList.map((item, idx) => {
+                const icon = getFoodIcon(item.name, item.category);
+                return (
+                  <div key={item.id} style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid var(--gray-200)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '24px' }}>{icon}</span>
+                        <div>
+                          <strong style={{ fontSize: '14px', color: 'var(--text-black)' }}>{item.name}</strong>
+                          <span style={{ fontSize: '10px', background: '#e0f2ec', color: 'var(--primary-color)', padding: '1px 5px', borderRadius: '4px', marginLeft: '6px', fontWeight: 'bold' }}>
+                            {item.category}
+                          </span>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => setConfirmList(prev => prev.filter(c => c.id !== item.id))}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#e53e3e', padding: '2px' }}
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ display: 'block', fontSize: '11px', color: 'var(--gray-500)', marginBottom: '4px' }}>수량</label>
+                        <input 
+                          type="text" 
+                          className="input-field" 
+                          style={{ padding: '6px 8px', fontSize: '12px', height: 'auto' }}
+                          value={item.quantity}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setConfirmList(prev => prev.map(c => c.id === item.id ? { ...c, quantity: val } : c));
+                          }}
+                        />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ display: 'block', fontSize: '11px', color: 'var(--gray-500)', marginBottom: '4px' }}>유통기한</label>
+                        <input 
+                          type="date" 
+                          className="input-field" 
+                          style={{ padding: '6px 8px', fontSize: '12px', height: 'auto' }}
+                          value={item.expDate}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setConfirmList(prev => prev.map(c => c.id === item.id ? { ...c, expDate: val } : c));
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+              <button 
+                onClick={() => setShowConfirmPopup(false)}
+                style={{
+                  flex: 1, padding: '12px', background: '#f1f5f9', border: 'none', borderRadius: '10px',
+                  fontSize: '13px', fontWeight: 'bold', color: 'var(--gray-500)', cursor: 'pointer'
+                }}
+              >
+                취소
+              </button>
+              <button 
+                onClick={handleConfirmSave}
+                style={{
+                  flex: 2, padding: '12px', background: 'var(--primary-color)', border: 'none', borderRadius: '10px',
+                  fontSize: '13px', fontWeight: 'bold', color: '#ffffff', cursor: 'pointer',
+                  boxShadow: '0 4px 6px rgba(55,146,113,0.2)'
+                }}
+              >
+                냉장고에 추가 ({confirmList.length}건)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
