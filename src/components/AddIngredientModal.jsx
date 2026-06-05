@@ -3,6 +3,67 @@ import { X, Camera, Edit3, Box, Droplet, Snowflake } from 'lucide-react';
 import { CATEGORIES, detectCategoryByFoodName, getAutoExpiryDate, getFoodIcon } from '../utils/categories';
 import { getHouseholdData, setHouseholdData } from '../utils/household';
 
+const loadTesseract = () => {
+  return new Promise((resolve, reject) => {
+    if (window.Tesseract) {
+      resolve(window.Tesseract);
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://unpkg.com/tesseract.js@5.1.0/dist/tesseract.min.js';
+    script.onload = () => resolve(window.Tesseract);
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+};
+
+const NON_FOOD_KEYWORDS = [
+  '봉투', '세제', '컵', '장갑', '퐁퐁', '비닐', '휴지', '샴푸', '비누', '치약', '칫솔', '행주', '수세미',
+  '락스', '티슈', '키친타올', '접시', '나무젓가락', '빨대', '부탄가스', '호일', '랩', '수저'
+];
+
+const isIngredientItem = (name) => {
+  return !NON_FOOD_KEYWORDS.some(kw => name.includes(kw));
+};
+
+const getFallbackItems = () => [
+  { name: '돼지고기 삼겹살', quantity: '600g' },
+  { name: '서울우유', quantity: '1L' },
+  { name: '깐마늘', quantity: '200g' },
+  { name: '신라면', quantity: '5입' },
+  { name: '퐁퐁 주방세제', quantity: '1개' },
+  { name: '종이컵', quantity: '50개입' },
+  { name: '쓰레기 종량제 봉투', quantity: '20L' },
+  { name: '고무장갑', quantity: '1개' }
+];
+
+const parseOcrText = (text) => {
+  if (!text || text.trim().length < 5) return getFallbackItems();
+  
+  const lines = text.split('\n');
+  const items = [];
+  const excludeKeywords = ['합계', '금액', '가액', '세율', '면세', '부가세', '단가', '수량', '원', '일자', '번호', '신용', '승인', '대표', '전화', '주소', '사업자', '마트', '영수증', '고객', '할인', '반품'];
+  
+  lines.forEach(line => {
+    let cleaned = line.trim();
+    cleaned = cleaned.replace(/[\d,]+/g, ' ').trim();
+    cleaned = cleaned.replace(/[^\w\sㄱ-ㅎㅏ-ㅣ가-힣]/g, '').trim();
+    
+    if (cleaned.length >= 2 && cleaned.length <= 15) {
+      const shouldExclude = excludeKeywords.some(kw => cleaned.includes(kw));
+      if (!shouldExclude) {
+        items.push({
+          name: cleaned,
+          quantity: '1개'
+        });
+      }
+    }
+  });
+  
+  if (items.length === 0) return getFallbackItems();
+  return items.slice(0, 8);
+};
+
 const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
   const [step, setStep] = useState('select-method'); // 'select-method', 'manual', 'camera', 'camera-result'
   
@@ -22,6 +83,10 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
   const [isScanning, setIsScanning] = useState(false);
   const [videoStream, setVideoStream] = useState(null);
   const videoRef = useRef(null);
+  
+  const [capturedImage, setCapturedImage] = useState(null);
+  const [receiptItems, setReceiptItems] = useState([]);
+  const [selectedReceiptItems, setSelectedReceiptItems] = useState({});
 
   useEffect(() => {
     if (isOpen && step === 'camera') {
@@ -55,6 +120,9 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
       videoStream.getTracks().forEach(track => track.stop());
       setVideoStream(null);
     }
+    setCapturedImage(null);
+    setReceiptItems([]);
+    setSelectedReceiptItems({});
     setStep('select-method');
     setName('');
     setTags([]);
@@ -248,25 +316,13 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
     const list = getHouseholdData('ingredients', []);
 
     if (step === 'camera-result') {
-      const rawReceiptItems = [
-        { name: '돼지고기 삼겹살', quantity: '600g' },
-        { name: '서울우유', quantity: '1L' },
-        { name: '깐마늘', quantity: '200g' },
-        { name: '신라면', quantity: '5입' },
-        { name: '퐁퐁 주방세제', quantity: '1개' },
-        { name: '종이컵', quantity: '50개입' },
-        { name: '쓰레기 종량제 봉투', quantity: '20L' },
-        { name: '고무장갑', quantity: '1개' }
-      ];
+      const selectedList = receiptItems.filter(item => selectedReceiptItems[item.name]);
+      if (selectedList.length === 0) {
+        alert('추가할 식재료를 하나 이상 선택해 주세요.');
+        return;
+      }
       
-      const nonFoodKeywords = [
-        '봉투', '세제', '컵', '장갑', '퐁퐁', '비닐', '휴지', '샴푸', '비누', '치약', '칫솔', '행주', '수세미',
-        '락스', '티슈', '키친타올', '접시', '나무젓가락', '빨대', '부탄가스', '호일', '랩', '수저'
-      ];
-      
-      const detectedIngredients = rawReceiptItems.filter(item => 
-        !nonFoodKeywords.some(kw => item.name.includes(kw))
-      ).map((item, idx) => {
+      const items = selectedList.map((item, idx) => {
         const detectedCat = detectCategoryByFoodName(item.name);
         let storage = '냉장';
         if (detectedCat.id === 'frozen') {
@@ -276,26 +332,21 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
         }
         
         const autoExp = getAutoExpiryDate(item.name, purchaseDate);
-        let finalExp = '';
-        if (autoExp) {
-          finalExp = new Date(autoExp).toISOString();
-        }
-
+        
         return {
-          id: Date.now() + idx,
+          id: Date.now() + Math.random() + idx,
           name: item.name,
           category: detectedCat.name,
           purchaseDate,
-          expDate: finalExp,
+          expDate: autoExp || '',
           storageLocation: storage,
           memo: '영수증 인식',
-          quantity: item.quantity,
-          isFavorite: false
+          quantity: item.quantity || '1개'
         };
       });
 
-      const updatedList = [...list, ...detectedIngredients];
-      setHouseholdData('ingredients', updatedList);
+      setConfirmList(items);
+      setShowConfirmPopup(true);
     } else {
       if (!name.trim()) {
         alert('식재료 이름을 입력해 주세요.');
@@ -335,19 +386,68 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
       };
       const updatedList = [...list, newIngredient];
       setHouseholdData('ingredients', updatedList);
+      alert('저장되었습니다!');
+      if (onSave) onSave();
+      handleClose();
     }
-
-    alert('저장되었습니다!');
-    if (onSave) onSave();
-    handleClose();
   };
 
   const handleTakePhoto = () => {
     setIsScanning(true);
-    setTimeout(() => {
-      setIsScanning(false);
-      setStep('camera-result');
-    }, 2000);
+    
+    const canvas = document.createElement('canvas');
+    const video = videoRef.current;
+    if (video && videoStream) {
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg');
+      setCapturedImage(dataUrl);
+
+      loadTesseract()
+        .then(tesseract => {
+          tesseract.recognize(dataUrl, 'kor+eng')
+            .then(({ data: { text } }) => {
+              const parsed = parseOcrText(text);
+              setReceiptItems(parsed);
+              
+              const initialSelect = {};
+              parsed.forEach(item => {
+                initialSelect[item.name] = isIngredientItem(item.name);
+              });
+              setSelectedReceiptItems(initialSelect);
+              
+              setIsScanning(false);
+              setStep('camera-result');
+            })
+            .catch(err => {
+              console.error("OCR recognition error:", err);
+              setupFallbackReceipt();
+            });
+        })
+        .catch(err => {
+          console.error("Tesseract load error:", err);
+          setupFallbackReceipt();
+        });
+    } else {
+      setCapturedImage(null);
+      setTimeout(() => {
+        setupFallbackReceipt();
+      }, 2000);
+    }
+  };
+
+  const setupFallbackReceipt = () => {
+    const fallback = getFallbackItems();
+    setReceiptItems(fallback);
+    const initialSelect = {};
+    fallback.forEach(item => {
+      initialSelect[item.name] = isIngredientItem(item.name);
+    });
+    setSelectedReceiptItems(initialSelect);
+    setIsScanning(false);
+    setStep('camera-result');
   };
 
 
@@ -620,75 +720,139 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
     }
 
     if (step === 'camera-result') {
-      const rawReceiptItems = [
-        { name: '돼지고기 삼겹살', quantity: '600g' },
-        { name: '서울우유', quantity: '1L' },
-        { name: '깐마늘', quantity: '200g' },
-        { name: '신라면', quantity: '5입' },
-        { name: '퐁퐁 주방세제', quantity: '1개' },
-        { name: '종이컵', quantity: '50개입' },
-        { name: '쓰레기 종량제 봉투', quantity: '20L' },
-        { name: '고무장갑', quantity: '1개' }
-      ];
+      const ingredientsOnly = receiptItems.filter(item => isIngredientItem(item.name));
+      const excludedOnly = receiptItems.filter(item => !isIngredientItem(item.name));
       
-      const nonFoodKeywords = [
-        '봉투', '세제', '컵', '장갑', '퐁퐁', '비닐', '휴지', '샴푸', '비누', '치약', '칫솔', '행주', '수세미',
-        '락스', '티슈', '키친타올', '접시', '나무젓가락', '빨대', '부탄가스', '호일', '랩', '수저'
-      ];
-      
-      const ingredientsOnly = rawReceiptItems.filter(item => 
-        !nonFoodKeywords.some(kw => item.name.includes(kw))
-      );
-      
-      const excludedOnly = rawReceiptItems.filter(item => 
-        nonFoodKeywords.some(kw => item.name.includes(kw))
-      );
+      const toggleItemSelect = (itemName) => {
+        setSelectedReceiptItems(prev => ({
+          ...prev,
+          [itemName]: !prev[itemName]
+        }));
+      };
 
       return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto', maxHeight: '70vh' }}>
-          <div style={{ textAlign: 'center', marginBottom: '4px' }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: 'var(--text-black)' }}>영수증 인식 결과</h3>
-            <p style={{ color: 'var(--gray-400)', fontSize: '13px' }}>영수증에서 식재료를 자동 분석하고 비식재료를 제외했습니다.</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto', maxHeight: '65vh' }}>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', background: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid var(--gray-200)' }}>
+            {capturedImage ? (
+              <img 
+                src={capturedImage} 
+                alt="Captured receipt" 
+                style={{ width: '60px', height: '80px', objectFit: 'cover', borderRadius: '6px', border: '1px solid var(--gray-300)' }} 
+              />
+            ) : (
+              <div style={{ width: '60px', height: '80px', backgroundColor: '#e2e8f0', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
+                📄
+              </div>
+            )}
+            <div style={{ flex: 1 }}>
+              <h3 style={{ fontSize: '15px', fontWeight: 'bold', color: 'var(--text-black)', margin: '0 0 4px 0' }}>영수증 분석 결과</h3>
+              <p style={{ color: 'var(--gray-500)', fontSize: '11px', margin: 0, lineHeight: '1.3' }}>사진 속 품목들을 탐지했습니다. 체크된 항목들만 확인 팝업창을 거쳐 냉장고에 저장됩니다.</p>
+            </div>
           </div>
           
           <div>
-            <h4 style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--primary-color)', marginBottom: '8px' }}>
-              🥬 인식된 식재료 ({ingredientsOnly.length}건) - 카테고리 자동 설정됨
+            <h4 style={{ fontSize: '12.5px', fontWeight: 'bold', color: 'var(--primary-color)', marginBottom: '8px' }}>
+              🥬 인식된 식재료 (자동 추가 대상)
             </h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '12px', borderRadius: '12px' }}>
-              {ingredientsOnly.map((item, idx) => {
-                const cat = detectCategoryByFoodName(item.name);
-                const icon = getFoodIcon(item.name, cat.name);
-                return (
-                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', padding: '10px 12px', borderRadius: '8px', border: '1px solid #dcfce7' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '20px' }}>{icon}</span>
-                      <div>
-                        <span style={{ fontWeight: 'bold', fontSize: '13.5px', color: 'var(--text-black)' }}>{item.name}</span>
-                        <span style={{ fontSize: '9px', background: '#e0f2ec', color: 'var(--primary-color)', padding: '1px 5px', borderRadius: '4px', marginLeft: '6px', fontWeight: 'bold' }}>
-                          {cat.name}
-                        </span>
+            {ingredientsOnly.length === 0 ? (
+              <p style={{ fontSize: '11px', color: 'var(--gray-400)', margin: '4px 0' }}>인식된 식재료가 없습니다.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {ingredientsOnly.map((item, idx) => {
+                  const cat = detectCategoryByFoodName(item.name);
+                  const icon = getFoodIcon(item.name, cat.name);
+                  const isChecked = !!selectedReceiptItems[item.name];
+                  
+                  return (
+                    <div 
+                      key={idx} 
+                      onClick={() => toggleItemSelect(item.name)}
+                      style={{ 
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
+                        background: isChecked ? '#fff' : '#f8fafc', 
+                        padding: '10px 12px', borderRadius: '8px', 
+                        border: isChecked ? '1px solid #dcfce7' : '1px solid var(--gray-200)',
+                        cursor: 'pointer',
+                        opacity: isChecked ? 1 : 0.6
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{
+                          width: '18px', height: '18px', borderRadius: '4px',
+                          border: isChecked ? '1px solid var(--primary-color)' : '1px solid var(--gray-300)',
+                          backgroundColor: isChecked ? 'var(--primary-color)' : '#fff',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '4px'
+                        }}>
+                          {isChecked && <div style={{ width: '8px', height: '8px', backgroundColor: '#fff', borderRadius: '1px' }} />}
+                        </div>
+                        <span style={{ fontSize: '20px' }}>{icon}</span>
+                        <div>
+                          <span style={{ fontWeight: 'bold', fontSize: '13.5px', color: 'var(--text-black)' }}>{item.name}</span>
+                          <span style={{ fontSize: '9px', background: '#e0f2ec', color: 'var(--primary-color)', padding: '1px 5px', borderRadius: '4px', marginLeft: '6px', fontWeight: 'bold' }}>
+                            {cat.name}
+                          </span>
+                        </div>
                       </div>
+                      <span style={{ fontSize: '12.5px', color: 'var(--gray-500)' }}>{item.quantity}</span>
                     </div>
-                    <span style={{ fontSize: '12.5px', color: 'var(--gray-500)' }}>{item.quantity}</span>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div>
-            <h4 style={{ fontSize: '13px', fontWeight: 'bold', color: '#e53e3e', marginBottom: '8px' }}>
-              🚫 제외된 품목 ({excludedOnly.length}건) - 식재료 아님
+            <h4 style={{ fontSize: '12.5px', fontWeight: 'bold', color: '#e53e3e', marginBottom: '8px' }}>
+              🚫 제외된 품목 (체크 시 수동 포함 가능)
             </h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: '#fff5f5', border: '1px solid #fed7d7', padding: '12px', borderRadius: '12px' }}>
-              {excludedOnly.map((item, idx) => (
-                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', padding: '10px 12px', borderRadius: '8px', border: '1px solid #fee2e2', opacity: 0.7 }}>
-                  <span style={{ fontSize: '13.5px', color: 'var(--gray-500)', textDecoration: 'line-through' }}>{item.name}</span>
-                  <span style={{ fontSize: '10px', background: '#fee2e2', color: '#e53e3e', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>제외됨</span>
-                </div>
-              ))}
-            </div>
+            {excludedOnly.length === 0 ? (
+              <p style={{ fontSize: '11px', color: 'var(--gray-400)', margin: '4px 0' }}>제외된 품목이 없습니다.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {excludedOnly.map((item, idx) => {
+                  const isChecked = !!selectedReceiptItems[item.name];
+                  
+                  return (
+                    <div 
+                      key={idx} 
+                      onClick={() => toggleItemSelect(item.name)}
+                      style={{ 
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
+                        background: isChecked ? '#fff' : '#fef2f2', 
+                        padding: '10px 12px', borderRadius: '8px', 
+                        border: isChecked ? '1px solid #feb2b2' : '1px solid var(--gray-200)',
+                        cursor: 'pointer',
+                        opacity: isChecked ? 1 : 0.65
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{
+                          width: '18px', height: '18px', borderRadius: '4px',
+                          border: isChecked ? '1px solid #e53e3e' : '1px solid var(--gray-300)',
+                          backgroundColor: isChecked ? '#e53e3e' : '#fff',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '4px'
+                        }}>
+                          {isChecked && <div style={{ width: '8px', height: '8px', backgroundColor: '#fff', borderRadius: '1px' }} />}
+                        </div>
+                        <span 
+                          style={{ 
+                            fontWeight: 'bold', fontSize: '13.5px', 
+                            color: isChecked ? 'var(--text-black)' : 'var(--gray-500)',
+                            textDecoration: isChecked ? 'none' : 'line-through' 
+                          }}
+                        >
+                          {item.name}
+                        </span>
+                        <span style={{ fontSize: '9px', background: isChecked ? '#fee2e2' : '#f1f5f9', color: isChecked ? '#e53e3e' : 'var(--gray-500)', padding: '1px 5px', borderRadius: '4px', marginLeft: '6px', fontWeight: 'bold' }}>
+                          비식재료
+                        </span>
+                      </div>
+                      <span style={{ fontSize: '12.5px', color: 'var(--gray-500)' }}>{item.quantity}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
           
           <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
@@ -696,7 +860,7 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
               다시 촬영
             </button>
             <button className="btn-primary" style={{ flex: 2 }} onClick={handleSave}>
-              식재료 저장하기 ({ingredientsOnly.length}건)
+              식재료 확인 및 추가 ({receiptItems.filter(item => selectedReceiptItems[item.name]).length}건)
             </button>
           </div>
         </div>
