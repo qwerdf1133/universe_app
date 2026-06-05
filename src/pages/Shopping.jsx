@@ -1,52 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import Header from '../components/Header';
 import BottomNav from '../components/BottomNav';
-import { Plus, X, CheckSquare, Square, Trash2, User, Copy, ArrowRight, Beef, Carrot, Milk, Snowflake, Droplet, Box, Sparkles, ShoppingBag, Send } from 'lucide-react';
-
-const CATEGORIES = [
-  { id: 'auto', name: '자동 설정', icon: Sparkles },
-  { id: 'meat', name: '육류', icon: Beef },
-  { id: 'veg', name: '채소', icon: Carrot },
-  { id: 'dairy', name: '유제품', icon: Milk },
-  { id: 'frozen', name: '냉동식품', icon: Snowflake },
-  { id: 'sauce', name: '소스/양념', icon: Droplet },
-];
+import { Plus, X, CheckSquare, Square, Trash2, User, Copy, ArrowRight, ShoppingBag, Send } from 'lucide-react';
+import { CATEGORIES, detectCategoryByFoodName, getAutoExpiryDate, getFoodIcon } from '../utils/categories';
 
 const INITIAL_SHOPPING = [];
-
-// Initial Member Request Dummy Data
 const INITIAL_MEMBER_REQUESTS = [];
-
-const getAutoExpiryDate = (name, pDateStr) => {
-  const pDate = pDateStr ? new Date(pDateStr) : new Date();
-  const n = name.trim().toLowerCase();
-  let days = 30; // default generic fallback
-
-  if (n.includes('우유') || n.includes('요거트') || n.includes('치즈') || n.includes('유제품')) {
-    days = 3; // 우유 3일
-  } else if (n.includes('계란') || n.includes('달걀') || n.includes('알')) {
-    days = 7; // 계란 7일
-  } else if (n.includes('생선') || n.includes('해산물') || n.includes('오징어') || n.includes('고등어') || n.includes('새우')) {
-    days = 2; // 생선 2일
-  } else if (n.includes('삼겹살') || n.includes('고기') || n.includes('목살') || n.includes('소고기') || n.includes('닭고기') || n.includes('육류')) {
-    days = 3; // 고기 3일
-  } else if (n.includes('통조림') || n.includes('캔') || n.includes('참치캔') || n.includes('스팸')) {
-    days = 730; // 캔 2년
-  } else if (n.includes('라면') || n.includes('면')) {
-    days = 365; // 라면 1년
-  } else if (n.includes('소스') || n.includes('간장') || n.includes('쌈장') || n.includes('양념') || n.includes('고추장') || n.includes('된장')) {
-    days = 180; // 소스 6개월
-  } else if (n.includes('상추') || n.includes('깻잎') || n.includes('시금치')) {
-    days = 4;
-  } else if (n.includes('마늘') || n.includes('양파') || n.includes('파') || n.includes('감자') || n.includes('당근') || n.includes('채소')) {
-    days = 7;
-  } else if (n.includes('만두') || n.includes('피자') || n.includes('튀김') || n.includes('냉동')) {
-    days = 180;
-  }
-
-  pDate.setDate(pDate.getDate() + days);
-  return pDate.toISOString().split('T')[0];
-};
 
 const Shopping = () => {
   const [activeTab, setActiveTab] = useState('my'); // 'my' or 'member'
@@ -58,7 +17,36 @@ const Shopping = () => {
   // Simplified Add Form State
   const [name, setName] = useState('');
   const [category, setCategory] = useState(CATEGORIES[0]); // '자동 설정' is default!
+  const [isAutoDetect, setIsAutoDetect] = useState(true);
   const [memo, setMemo] = useState('');
+
+  const handleNameChange = (e) => {
+    const newName = e.target.value;
+    setName(newName);
+    if (isAutoDetect) {
+      const detected = detectCategoryByFoodName(newName);
+      setCategory(detected);
+    }
+  };
+
+  const handleCategorySelect = (cat) => {
+    setCategory(cat);
+    if (cat.id === 'auto') {
+      setIsAutoDetect(true);
+      const detected = detectCategoryByFoodName(name);
+      setCategory(detected);
+    } else {
+      setIsAutoDetect(false);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setName('');
+    setCategory(CATEGORIES[0]);
+    setIsAutoDetect(true);
+    setMemo('');
+    setIsModalOpen(false);
+  };
 
   // Load Initial Lists
   useEffect(() => {
@@ -91,26 +79,6 @@ const Shopping = () => {
     localStorage.setItem('member-requests', JSON.stringify(newList));
   };
 
-  // Helper for Dynamic Icons
-  const getFoodIcon = (name, category) => {
-    const n = name.toLowerCase();
-    if (n.includes('삼겹살') || n.includes('고기') || n.includes('목살') || n.includes('소고기') || n.includes('닭고기')) return '🥩';
-    if (n.includes('마늘') || n.includes('양파') || n.includes('파') || n.includes('감자') || n.includes('당근')) return '🧄';
-    if (n.includes('상추') || n.includes('배추') || n.includes('깻잎') || n.includes('샐러드') || n.includes('야채')) return '🥬';
-    if (n.includes('햇반') || n.includes('밥') || n.includes('쌀')) return '🍚';
-    if (n.includes('우유') || n.includes('요거트') || n.includes('치즈')) return '🥛';
-    if (n.includes('계란') || n.includes('달걀') || n.includes('알')) return '🥚';
-    if (n.includes('사과') || n.includes('바나나') || n.includes('과일')) return '🍎';
-    if (n.includes('만두') || n.includes('피자') || n.includes('튀김')) return '🥟';
-    
-    // Category Fallbacks
-    if (category === '육류') return '🥩';
-    if (category === '채소') return '🥦';
-    if (category === '유제품') return '🥛';
-    if (category === '냉동식품') return '❄️';
-    if (category === '소스/양념') return '🧂';
-    return '📦';
-  };
 
   // Toggle Single Checkbox (My Shopping)
   const handleToggleCheck = (id, e) => {
@@ -160,29 +128,27 @@ const Shopping = () => {
         // Auto Category Identification
         let finalCat = item.category;
         if (item.category === '자동 설정' || !item.category) {
-          const n = item.name.toLowerCase();
-          if (n.includes('삼겹살') || n.includes('고기') || n.includes('목살') || n.includes('소고기') || n.includes('닭고기')) finalCat = '육류';
-          else if (n.includes('마늘') || n.includes('양파') || n.includes('파') || n.includes('상추') || n.includes('깻잎')) finalCat = '채소';
-          else if (n.includes('우유') || n.includes('요거트') || n.includes('치즈')) finalCat = '유제품';
-          else if (n.includes('만두') || n.includes('피자') || n.includes('튀김') || n.includes('냉동')) finalCat = '냉동식품';
-          else if (n.includes('소스') || n.includes('간장') || n.includes('쌈장') || n.includes('양념')) finalCat = '소스/양념';
-          else finalCat = '기타';
+          finalCat = detectCategoryByFoodName(item.name).name;
         }
 
         // Auto Storage Location
         let storage = '냉장';
-        if (finalCat === '냉동식품') storage = '냉동';
-        else if (finalCat === '소스/양념' || finalCat === '기타') storage = '실온';
+        if (finalCat === '냉동식품') {
+          storage = '냉동';
+        } else if (['곡류', '가공식품', '음료', '조미료', '소스류', '향신료', '기타'].includes(finalCat)) {
+          storage = '실온';
+        }
 
         // Auto Expiry Date calculation
         const autoExp = getAutoExpiryDate(item.name, todayStr);
+        const finalExp = autoExp ? new Date(autoExp).toISOString() : '';
 
         ingredientsList.push({
           id: Date.now() + Math.random(),
           name: item.name,
           category: finalCat,
           purchaseDate: todayStr,
-          expDate: new Date(autoExp).toISOString(),
+          expDate: finalExp,
           storageLocation: storage,
           memo: item.memo || '장보기 구매 완료',
           isFavorite: false
@@ -203,13 +169,9 @@ const Shopping = () => {
 
     let finalCat = category ? category.name : '기타';
     if (!category || category.id === 'auto') {
-      const n = name.toLowerCase();
-      if (n.includes('삼겹살') || n.includes('고기') || n.includes('목살') || n.includes('소고기') || n.includes('닭고기')) finalCat = '육류';
-      else if (n.includes('마늘') || n.includes('양파') || n.includes('파') || n.includes('상추') || n.includes('깻잎')) finalCat = '채소';
-      else if (n.includes('우유') || n.includes('요거트') || n.includes('치즈')) finalCat = '유제품';
-      else if (n.includes('만두') || n.includes('피자') || n.includes('튀김') || n.includes('냉동')) finalCat = '냉동식품';
-      else if (n.includes('소스') || n.includes('간장') || n.includes('쌈장') || n.includes('양념')) finalCat = '소스/양념';
-      else finalCat = '기타';
+      finalCat = detectCategoryByFoodName(name).name;
+    } else if (category.id === 'other') {
+      finalCat = '기타';
     }
 
     if (modalTab === 'add-item') {
@@ -251,6 +213,7 @@ const Shopping = () => {
     // Reset Form
     setName('');
     setCategory(CATEGORIES[0]);
+    setIsAutoDetect(true);
     setMemo('');
     setIsModalOpen(false);
   };
@@ -716,7 +679,7 @@ const Shopping = () => {
               display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
               animation: 'fadeIn 0.2s ease-out'
             }}
-            onClick={() => setIsModalOpen(false)}
+            onClick={handleCloseModal}
           />
           
           <div 
@@ -735,7 +698,7 @@ const Shopping = () => {
             {/* Modal Top Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h2 style={{ fontSize: '18px', fontWeight: 'bold' }}>장보기 관리 추가</h2>
-              <button onClick={() => setIsModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
+              <button onClick={handleCloseModal} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
                 <X size={24} color="var(--gray-400)" />
               </button>
             </div>
@@ -777,35 +740,63 @@ const Shopping = () => {
                   className="input-field" 
                   placeholder="예: 계란, 대파, 두부" 
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={handleNameChange}
                 />
               </div>
 
               <div>
                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>카테고리</label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                <div style={{ maxHeight: '180px', overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', padding: '4px', border: '1px solid var(--gray-100)', borderRadius: '8px' }}>
                   {CATEGORIES.map(cat => {
                     const Icon = cat.icon;
-                    const isSelected = category?.id === cat.id;
+                    let isSelected = false;
+                    let isAutoDetected = false;
+                    
+                    if (cat.id === 'auto') {
+                      isSelected = isAutoDetect;
+                    } else {
+                      if (category?.id === cat.id) {
+                        if (isAutoDetect) {
+                          isAutoDetected = true;
+                        } else {
+                          isSelected = true;
+                        }
+                      }
+                    }
                     return (
                       <div 
                         key={cat.id}
-                        onClick={() => setCategory(cat)}
+                        onClick={() => handleCategorySelect(cat)}
                         style={{ 
                           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', 
                           padding: '12px 8px', borderRadius: '8px', cursor: 'pointer',
-                          border: isSelected ? '2px solid var(--primary-color)' : '1px solid var(--gray-200)',
-                          background: isSelected ? '#e0f2ec' : '#fff'
+                          border: isSelected 
+                            ? '2px solid var(--primary-color)' 
+                            : isAutoDetected 
+                              ? '2px dashed var(--primary-color)' 
+                              : '1px solid var(--gray-200)',
+                          background: isSelected 
+                            ? '#e0f2ec' 
+                            : isAutoDetected 
+                              ? '#f0fdf4' 
+                              : '#fff'
                         }}
                       >
-                        <Icon size={24} color={isSelected ? 'var(--primary-color)' : 'var(--gray-400)'} style={{ marginBottom: '4px' }} />
-                        <span style={{ fontSize: '12px', color: isSelected ? 'var(--primary-color)' : 'var(--gray-600)', fontWeight: isSelected ? 'bold' : 'normal' }}>
+                        <Icon size={24} color={isSelected || isAutoDetected ? 'var(--primary-color)' : 'var(--gray-400)'} style={{ marginBottom: '4px' }} />
+                        <span style={{ fontSize: '12px', color: isSelected || isAutoDetected ? 'var(--primary-color)' : 'var(--gray-600)', fontWeight: isSelected || isAutoDetected ? 'bold' : 'normal' }}>
                           {cat.name}
                         </span>
                       </div>
                     );
                   })}
                 </div>
+                {category && (
+                  <div style={{ fontSize: '12px', color: 'var(--gray-400)', marginTop: '6px' }}>
+                    {isAutoDetect 
+                      ? `* 자동 설정 활성: 이름 분석 결과 [${category.name}] 카테고리 감지됨`
+                      : `* 수동 지정 활성: [${category.name}] 카테고리 적용`}
+                  </div>
+                )}
               </div>
 
               <div>

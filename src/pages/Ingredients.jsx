@@ -5,6 +5,7 @@ import AddIngredientModal from '../components/AddIngredientModal';
 import IngredientDetailModal from '../components/IngredientDetailModal';
 import { Plus, Box, Droplet, Snowflake, Heart } from 'lucide-react';
 import { getHouseholdData, setHouseholdData } from '../utils/household';
+import { getFoodIcon } from '../utils/categories';
 
 const DUMMY_INGREDIENTS = [
   { id: 1, name: '돼지고기 삼겹살', category: '육류', storageLocation: '냉장', expDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(), isFavorite: true, purchaseDate: new Date().toISOString().split('T')[0], memo: '구이용 삼겹살' },
@@ -38,7 +39,9 @@ const Ingredients = () => {
       const today = new Date();
       today.setHours(0,0,0,0);
       return ingredients.filter(item => {
+        if (!item.expDate) return false;
         const exp = new Date(item.expDate);
+        if (isNaN(exp)) return false;
         exp.setHours(0,0,0,0);
         const diffTime = exp - today;
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -70,30 +73,15 @@ const Ingredients = () => {
     setIsDetailOpen(true);
   };
 
-  // Helper for Dynamic Icons
-  const getFoodIcon = (name, category) => {
-    const n = name.toLowerCase();
-    if (n.includes('삼겹살') || n.includes('고기') || n.includes('목살') || n.includes('소고기') || n.includes('닭고기')) return '🥩';
-    if (n.includes('마늘') || n.includes('양파') || n.includes('파') || n.includes('감자') || n.includes('당근')) return '🧄';
-    if (n.includes('상추') || n.includes('배추') || n.includes('깻잎') || n.includes('샐러드') || n.includes('야채')) return '🥬';
-    if (n.includes('햇반') || n.includes('밥') || n.includes('쌀')) return '🍚';
-    if (n.includes('우유') || n.includes('요거트') || n.includes('치즈')) return '🥛';
-    if (n.includes('계란') || n.includes('달걀') || n.includes('알')) return '🥚';
-    if (n.includes('사과') || n.includes('바나나') || n.includes('과일')) return '🍎';
-    if (n.includes('만두') || n.includes('피자') || n.includes('튀김')) return '🥟';
-    
-    // Category Fallbacks
-    if (category === '육류') return '🥩';
-    if (category === '채소') return '🥦';
-    if (category === '유제품') return '🥛';
-    if (category === '냉동식품') return '❄️';
-    if (category === '소스/양념') return '🧂';
-    return '📦';
-  };
+
 
   // Remaining Expiration Bar (6 Segments)
   const renderProgressBar = (expDate) => {
-    const diffDays = Math.ceil((new Date(expDate) - new Date()) / (1000 * 60 * 60 * 24));
+    if (!expDate) return null;
+    const parsedExp = new Date(expDate);
+    if (isNaN(parsedExp)) return null;
+
+    const diffDays = Math.ceil((parsedExp - new Date()) / (1000 * 60 * 60 * 24));
     let filled = 1;
     let color = '#48bb78'; // Green
     
@@ -180,8 +168,9 @@ const Ingredients = () => {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {filteredData.map(item => {
-              const diffDays = Math.ceil((new Date(item.expDate) - new Date()) / (1000 * 60 * 60 * 24));
-              const isExpired = diffDays < 0;
+              const hasExp = !!item.expDate;
+              const diffDays = hasExp ? Math.ceil((new Date(item.expDate) - new Date()) / (1000 * 60 * 60 * 24)) : Infinity;
+              const isExpired = hasExp && diffDays < 0;
 
               return (
                 <div 
@@ -215,12 +204,14 @@ const Ingredients = () => {
                       </div>
                       
                       <div style={{ fontSize: '11px', color: isExpired ? '#e53e3e' : 'var(--gray-500)' }}>
-                        유통기한: {item.expDate.split('T')[0]} 
-                        {isExpired ? (
-                          <span style={{ color: '#e53e3e', fontWeight: 'bold', marginLeft: '4px' }}>(만료됨)</span>
-                        ) : (
-                          diffDays <= 3 && <span style={{ color: 'red', marginLeft: '4px', fontWeight: 'bold' }}>({diffDays}일 남음)</span>
-                        )}
+                        유통기한: {hasExp ? item.expDate.split('T')[0] : '미지정'} 
+                        {hasExp ? (
+                          isExpired ? (
+                            <span style={{ color: '#e53e3e', fontWeight: 'bold', marginLeft: '4px' }}>(만료됨)</span>
+                          ) : (
+                            diffDays <= 3 && <span style={{ color: 'red', marginLeft: '4px', fontWeight: 'bold' }}>({diffDays}일 남음)</span>
+                          )
+                        ) : null}
                       </div>
                       
                       {/* Expiration Bar */}

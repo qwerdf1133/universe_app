@@ -301,7 +301,9 @@ const Cooking = () => {
     
     const ownedNames = list.map(item => item.name.toLowerCase());
     const expiringNames = list.filter(item => {
+      if (!item.expDate) return false; // 유통기한 미지정 항목 제외
       const exp = new Date(item.expDate);
+      if (isNaN(exp.getTime())) return false;
       exp.setHours(0,0,0,0);
       const diffDays = Math.ceil((exp - today) / (1000 * 60 * 60 * 24));
       return diffDays <= 7;

@@ -5,6 +5,7 @@ import BottomNav from '../components/BottomNav';
 import { AlertTriangle, Trash2 } from 'lucide-react';
 import { fetchRecipes } from '../utils/api';
 import { getHouseholdData, setHouseholdData } from '../utils/household';
+import { getFoodIcon } from '../utils/categories';
 
 const RECIPES = [
   {
@@ -81,24 +82,7 @@ const RECIPES = [
   }
 ];
 
-const getFoodIcon = (name, category) => {
-  const n = name.toLowerCase();
-  if (n.includes('삼겹살') || n.includes('고기') || n.includes('목살') || n.includes('소고기') || n.includes('닭고기')) return '🥩';
-  if (n.includes('마늘') || n.includes('양파') || n.includes('파') || n.includes('감자') || n.includes('당근')) return '🧄';
-  if (n.includes('상추') || n.includes('배추') || n.includes('깻잎') || n.includes('샐러드') || n.includes('야채')) return '🥬';
-  if (n.includes('햇반') || n.includes('밥') || n.includes('쌀')) return '🍚';
-  if (n.includes('우유') || n.includes('요거트') || n.includes('치즈')) return '🥛';
-  if (n.includes('계란') || n.includes('달걀') || n.includes('알')) return '🥚';
-  if (n.includes('사과') || n.includes('바나나') || n.includes('과일')) return '🍎';
-  if (n.includes('만두') || n.includes('피자') || n.includes('튀김')) return '🥟';
-  
-  if (category === '육류') return '🥩';
-  if (category === '채소') return '🥦';
-  if (category === '유제품') return '🥛';
-  if (category === '냉동식품') return '❄️';
-  if (category === '소스/양념') return '🧂';
-  return '📦';
-};
+
 
 const Home = () => {
   const navigate = useNavigate();
@@ -110,7 +94,9 @@ const Home = () => {
     today.setHours(0,0,0,0);
 
     const expiring = list.filter(item => {
+      if (!item.expDate) return false; // 유통기한 미지정 항목 제외
       const exp = new Date(item.expDate);
+      if (isNaN(exp.getTime())) return false;
       exp.setHours(0,0,0,0);
       const diffTime = exp - today;
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -165,7 +151,10 @@ const Home = () => {
     today.setHours(0,0,0,0);
 
     const updated = list.filter(item => {
-      const diffDays = Math.ceil((new Date(item.expDate) - new Date()) / (1000 * 60 * 60 * 24));
+      if (!item.expDate) return true; // 유통기한 미지정 항목은 유지
+      const expDate = new Date(item.expDate);
+      if (isNaN(expDate.getTime())) return true;
+      const diffDays = Math.ceil((expDate - new Date()) / (1000 * 60 * 60 * 24));
       return diffDays >= 0;
     });
 
@@ -173,7 +162,9 @@ const Home = () => {
     alert('유통기한이 만료된 식재료가 삭제되었습니다.');
 
     const expiring = updated.filter(item => {
+      if (!item.expDate) return false; // 유통기한 미지정 항목 제외
       const exp = new Date(item.expDate);
+      if (isNaN(exp.getTime())) return false;
       exp.setHours(0,0,0,0);
       const diffTime = exp - today;
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -191,7 +182,9 @@ const Home = () => {
     today.setHours(0,0,0,0);
 
     const expiring = list.filter(item => {
+      if (!item.expDate) return false; // 유통기한 미지정 항목 제외
       const exp = new Date(item.expDate);
+      if (isNaN(exp.getTime())) return false;
       exp.setHours(0,0,0,0);
       const diffTime = exp - today;
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -221,8 +214,9 @@ const Home = () => {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '32px' }}>
             {expiringItems.map(item => {
-              const diffDays = Math.ceil((new Date(item.expDate) - new Date()) / (1000 * 60 * 60 * 24));
-              const isExpired = diffDays < 0;
+              const expDate = item.expDate ? new Date(item.expDate) : null;
+              const diffDays = expDate && !isNaN(expDate.getTime()) ? Math.ceil((expDate - new Date()) / (1000 * 60 * 60 * 24)) : null;
+              const isExpired = diffDays !== null && diffDays < 0;
               return (
                 <div 
                   key={item.id} 
@@ -249,10 +243,12 @@ const Home = () => {
                         <span style={{ fontSize: '9px', background: isExpired ? '#fed7d7' : '#e0f2ec', color: isExpired ? '#9b2c2c' : 'var(--primary-color)', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>{item.storageLocation}</span>
                       </div>
                       <div style={{ fontSize: '11px', color: isExpired ? '#e53e3e' : 'var(--gray-500)', marginTop: '2px' }}>
-                        유통기한: {item.expDate.split('T')[0]} 
-                        <span style={{ fontWeight: 'bold', marginLeft: '6px', color: isExpired ? '#e53e3e' : 'red' }}>
-                          {isExpired ? '유통기한 만료!' : `(${diffDays}일 남음)`}
-                        </span>
+                        유통기한: {item.expDate ? item.expDate.split('T')[0] : '미지정'}
+                        {diffDays !== null && (
+                          <span style={{ fontWeight: 'bold', marginLeft: '6px', color: isExpired ? '#e53e3e' : 'red' }}>
+                            {isExpired ? '유통기한 만료!' : `(${diffDays}일 남음)`}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -261,7 +257,11 @@ const Home = () => {
             })}
 
             {/* Expired Ingredient Delete Button */}
-            {expiringItems.some(item => Math.ceil((new Date(item.expDate) - new Date()) / (1000 * 60 * 60 * 24)) < 0) && (
+            {expiringItems.some(item => {
+              if (!item.expDate) return false;
+              const d = new Date(item.expDate);
+              return !isNaN(d.getTime()) && Math.ceil((d - new Date()) / (1000 * 60 * 60 * 24)) < 0;
+            }) && (
               <button
                 onClick={handleDeleteExpired}
                 style={{

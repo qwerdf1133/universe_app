@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Calendar, MapPin, Tag, FileText, Trash2, Edit } from 'lucide-react';
 
-const CATEGORIES = ['육류', '채소', '유제품', '냉동식품', '소스/양념', '기타'];
+const CATEGORIES = ['채소', '과일', '육류', '수산물', '유제품', '달걀류', '해조류', '곡류', '가공식품', '빵·제과', '음료', '조미료', '발효식품', '소스류', '향신료', '냉동식품', '기타'];
 
 const IngredientDetailModal = ({ isOpen, onClose, ingredient, onReload }) => {
   if (!isOpen || !ingredient) return null;
@@ -10,7 +10,7 @@ const IngredientDetailModal = ({ isOpen, onClose, ingredient, onReload }) => {
   const [name, setName] = useState(ingredient.name);
   const [category, setCategory] = useState(ingredient.category);
   const [purchaseDate, setPurchaseDate] = useState(ingredient.purchaseDate || new Date().toISOString().split('T')[0]);
-  const [expDate, setExpDate] = useState(ingredient.expDate.split('T')[0]);
+  const [expDate, setExpDate] = useState(ingredient.expDate ? ingredient.expDate.split('T')[0] : '');
   const [storageLocation, setStorageLocation] = useState(ingredient.storageLocation);
   const [memo, setMemo] = useState(ingredient.memo || '');
 
@@ -27,11 +27,22 @@ const IngredientDetailModal = ({ isOpen, onClose, ingredient, onReload }) => {
     if (n.includes('만두') || n.includes('피자') || n.includes('튀김')) return '🥟';
     
     // Category Fallbacks
+    if (category === '채소') return '🥬';
+    if (category === '과일') return '🍎';
     if (category === '육류') return '🥩';
-    if (category === '채소') return '🥦';
+    if (category === '수산물') return '🐟';
     if (category === '유제품') return '🥛';
+    if (category === '달걀류') return '🥚';
+    if (category === '해조류') return '🌿';
+    if (category === '곡류') return '🌾';
+    if (category === '가공식품') return '🥫';
+    if (category === '빵·제과') return '🍞';
+    if (category === '음료') return '🥤';
+    if (category === '조미료') return '🧂';
+    if (category === '발효식품') return '🍯';
+    if (category === '소스류') return '🥫';
+    if (category === '향신료') return '🌶️';
     if (category === '냉동식품') return '❄️';
-    if (category === '소스/양념') return '🧂';
     return '📦';
   };
 
@@ -51,7 +62,7 @@ const IngredientDetailModal = ({ isOpen, onClose, ingredient, onReload }) => {
         name,
         category,
         purchaseDate,
-        expDate: new Date(expDate).toISOString(),
+        expDate: expDate ? new Date(expDate).toISOString() : '',
         storageLocation,
         memo
       };
@@ -236,7 +247,7 @@ const IngredientDetailModal = ({ isOpen, onClose, ingredient, onReload }) => {
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <Calendar size={18} color="var(--gray-400)" />
                 <span style={{ color: 'var(--gray-500)', width: '70px', fontSize: '14px' }}>유통기한</span>
-                <span style={{ fontWeight: '500', fontSize: '14px', color: 'red' }}>{expDate}</span>
+                <span style={{ fontWeight: '500', fontSize: '14px', color: 'red' }}>{expDate || '미지정'}</span>
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>

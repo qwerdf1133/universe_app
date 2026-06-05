@@ -1,45 +1,6 @@
 import React, { useState } from 'react';
-import { X, Camera, Edit3, Beef, Carrot, Milk, Snowflake, Droplet, Box, Calendar, Sparkles } from 'lucide-react';
-
-const CATEGORIES = [
-  { id: 'auto', name: '자동 설정', icon: Sparkles, defaultExpDays: null },
-  { id: 'meat', name: '육류', icon: Beef, defaultExpDays: 5 },
-  { id: 'veg', name: '채소', icon: Carrot, defaultExpDays: 7 },
-  { id: 'dairy', name: '유제품', icon: Milk, defaultExpDays: 14 },
-  { id: 'frozen', name: '냉동식품', icon: Snowflake, defaultExpDays: 180 },
-  { id: 'sauce', name: '소스/양념', icon: Droplet, defaultExpDays: 365 },
-];
-
-const getAutoExpiryDate = (name, pDateStr) => {
-  const pDate = pDateStr ? new Date(pDateStr) : new Date();
-  const n = name.trim().toLowerCase();
-  let days = 30; // default generic fallback
-
-  if (n.includes('우유') || n.includes('요거트') || n.includes('치즈') || n.includes('유제품')) {
-    days = 3; // 우유 3일
-  } else if (n.includes('계란') || n.includes('달걀') || n.includes('알')) {
-    days = 7; // 계란 7일
-  } else if (n.includes('생선') || n.includes('해산물') || n.includes('오징어') || n.includes('고등어') || n.includes('새우')) {
-    days = 2; // 생선 2일
-  } else if (n.includes('삼겹살') || n.includes('고기') || n.includes('목살') || n.includes('소고기') || n.includes('닭고기') || n.includes('육류')) {
-    days = 3; // 고기 3일
-  } else if (n.includes('통조림') || n.includes('캔') || n.includes('참치캔') || n.includes('스팸')) {
-    days = 730; // 캔 2년
-  } else if (n.includes('라면') || n.includes('면')) {
-    days = 365; // 라면 1년
-  } else if (n.includes('소스') || n.includes('간장') || n.includes('쌈장') || n.includes('양념') || n.includes('고추장') || n.includes('된장')) {
-    days = 180; // 소스 6개월
-  } else if (n.includes('상추') || n.includes('깻잎') || n.includes('시금치')) {
-    days = 4;
-  } else if (n.includes('마늘') || n.includes('양파') || n.includes('파') || n.includes('감자') || n.includes('당근') || n.includes('채소')) {
-    days = 7;
-  } else if (n.includes('만두') || n.includes('피자') || n.includes('튀김') || n.includes('냉동')) {
-    days = 180;
-  }
-
-  pDate.setDate(pDate.getDate() + days);
-  return pDate.toISOString().split('T')[0];
-};
+import { X, Camera, Edit3, Box, Droplet, Snowflake } from 'lucide-react';
+import { CATEGORIES, detectCategoryByFoodName, getAutoExpiryDate } from '../utils/categories';
 
 const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
   const [step, setStep] = useState('select-method'); // 'select-method', 'manual', 'camera', 'camera-result'
@@ -47,6 +8,7 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
   // Manual Entry State
   const [name, setName] = useState('');
   const [category, setCategory] = useState(CATEGORIES[0]); // '자동 설정' is default!
+  const [isAutoDetect, setIsAutoDetect] = useState(true);
   const [purchaseDate, setPurchaseDate] = useState(new Date().toISOString().split('T')[0]);
   const [expDate, setExpDate] = useState('');
   const [storageLocation, setStorageLocation] = useState('냉장'); // '실온', '냉장', '냉동'
@@ -61,6 +23,7 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
     setStep('select-method');
     setName('');
     setCategory(CATEGORIES[0]);
+    setIsAutoDetect(true);
     setPurchaseDate(new Date().toISOString().split('T')[0]);
     setExpDate('');
     setStorageLocation('냉장');
@@ -71,23 +34,54 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
   const handleCategorySelect = (cat) => {
     setCategory(cat);
     if (cat.id === 'auto') {
-      setExpDate('');
-    } else if (purchaseDate) {
-      const pDate = new Date(purchaseDate);
-      pDate.setDate(pDate.getDate() + cat.defaultExpDays);
-      setExpDate(pDate.toISOString().split('T')[0]);
+      setIsAutoDetect(true);
+      const detected = detectCategoryByFoodName(name);
+      setCategory(detected);
+      if (detected.defaultExpDays !== null && purchaseDate) {
+        const pDate = new Date(purchaseDate);
+        pDate.setDate(pDate.getDate() + detected.defaultExpDays);
+        setExpDate(pDate.toISOString().split('T')[0]);
+      } else {
+        setExpDate('');
+      }
+    } else {
+      setIsAutoDetect(false);
+      if (cat.defaultExpDays !== null && purchaseDate) {
+        const pDate = new Date(purchaseDate);
+        pDate.setDate(pDate.getDate() + cat.defaultExpDays);
+        setExpDate(pDate.toISOString().split('T')[0]);
+      } else {
+        setExpDate('');
+      }
     }
   };
 
   const handlePurchaseDateChange = (e) => {
     const newDate = e.target.value;
     setPurchaseDate(newDate);
-    if (category && category.id !== 'auto') {
+    const activeCat = isAutoDetect ? detectCategoryByFoodName(name) : category;
+    if (activeCat && activeCat.defaultExpDays !== null) {
       const pDate = new Date(newDate);
-      pDate.setDate(pDate.getDate() + category.defaultExpDays);
+      pDate.setDate(pDate.getDate() + activeCat.defaultExpDays);
       setExpDate(pDate.toISOString().split('T')[0]);
     } else {
       setExpDate('');
+    }
+  };
+
+  const handleNameChange = (e) => {
+    const newName = e.target.value;
+    setName(newName);
+    if (isAutoDetect) {
+      const detected = detectCategoryByFoodName(newName);
+      setCategory(detected);
+      if (detected.defaultExpDays !== null && purchaseDate) {
+        const pDate = new Date(purchaseDate);
+        pDate.setDate(pDate.getDate() + detected.defaultExpDays);
+        setExpDate(pDate.toISOString().split('T')[0]);
+      } else {
+        setExpDate('');
+      }
     }
   };
 
@@ -97,10 +91,10 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
 
     if (step === 'camera-result') {
       const items = [
-        { id: Date.now() + 1, name: '돼지고기 삼겹살', category: '육류', purchaseDate: new Date().toISOString().split('T')[0], expDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(), storageLocation: '냉장', memo: '영수증 인식', isFavorite: false },
+        { id: Date.now() + 1, name: '돼지고기 삼겹살', category: '육류', purchaseDate: new Date().toISOString().split('T')[0], expDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(), storageLocation: '냉장', memo: '영수증 인식', isFavorite: false },
         { id: Date.now() + 2, name: '양파', category: '채소', purchaseDate: new Date().toISOString().split('T')[0], expDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), storageLocation: '냉장', memo: '영수증 인식', isFavorite: false },
-        { id: Date.now() + 3, name: '깐마늘', category: '채소', purchaseDate: new Date().toISOString().split('T')[0], expDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), storageLocation: '냉동', memo: '영수증 인식', isFavorite: false },
-        { id: Date.now() + 4, name: '상추', category: '채소', purchaseDate: new Date().toISOString().split('T')[0], expDate: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString(), storageLocation: '냉장', memo: '영수증 인식', isFavorite: false },
+        { id: Date.now() + 3, name: '깐마늘', category: '채소', purchaseDate: new Date().toISOString().split('T')[0], expDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), storageLocation: '냉동', memo: '영수증 인식', isFavorite: false },
+        { id: Date.now() + 4, name: '상추', category: '채소', purchaseDate: new Date().toISOString().split('T')[0], expDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), storageLocation: '냉장', memo: '영수증 인식', isFavorite: false },
       ];
       list = [...list, ...items];
     } else {
@@ -110,35 +104,24 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
       }
 
       let finalExp = expDate;
-      let finalCat = category ? category.name : '자동 설정';
+      let finalCat = category ? category.name : '기타';
 
-      // Auto detection logic
       if (!category || category.id === 'auto') {
-        // Detect category name
-        const n = name.toLowerCase();
-        if (n.includes('삼겹살') || n.includes('고기') || n.includes('목살') || n.includes('소고기') || n.includes('닭고기')) {
-          finalCat = '육류';
-        } else if (n.includes('마늘') || n.includes('양파') || n.includes('파') || n.includes('상추') || n.includes('깻잎')) {
-          finalCat = '채소';
-        } else if (n.includes('우유') || n.includes('요거트') || n.includes('치즈')) {
-          finalCat = '유제품';
-        } else if (n.includes('만두') || n.includes('피자') || n.includes('튀김') || n.includes('냉동')) {
-          finalCat = '냉동식품';
-        } else if (n.includes('소스') || n.includes('간장') || n.includes('쌈장') || n.includes('양념')) {
-          finalCat = '소스/양념';
-        } else {
-          finalCat = '기타';
-        }
-
-        if (!finalExp) {
+        const detected = detectCategoryByFoodName(name);
+        finalCat = detected.name;
+        if (!finalExp && detected.defaultExpDays !== null) {
           finalExp = getAutoExpiryDate(name, purchaseDate);
         }
+      } else if (category.id === 'other') {
+        finalCat = '기타';
       }
 
-      if (!finalExp) {
-        finalExp = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-      } else if (finalExp.indexOf('T') === -1) {
-        finalExp = new Date(finalExp).toISOString();
+      if (finalExp) {
+        if (finalExp.indexOf('T') === -1) {
+          finalExp = new Date(finalExp).toISOString();
+        }
+      } else {
+        finalExp = ''; // Keep it empty for '기타' or when cleared
       }
 
       const newIngredient = {
@@ -167,6 +150,7 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
       setStep('camera-result');
     }, 2000);
   };
+
 
   const renderContent = () => {
     if (step === 'select-method') {
@@ -200,16 +184,29 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
               className="input-field" 
               placeholder="예: 돼지고기 목살" 
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={handleNameChange}
             />
           </div>
 
           <div>
             <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>카테고리</label>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+            <div style={{ maxHeight: '180px', overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', padding: '4px', border: '1px solid var(--gray-100)', borderRadius: '8px' }}>
               {CATEGORIES.map(cat => {
                 const Icon = cat.icon;
-                const isSelected = category?.id === cat.id;
+                let isSelected = false;
+                let isAutoDetected = false;
+                
+                if (cat.id === 'auto') {
+                  isSelected = isAutoDetect;
+                } else {
+                  if (category?.id === cat.id) {
+                    if (isAutoDetect) {
+                      isAutoDetected = true;
+                    } else {
+                      isSelected = true;
+                    }
+                  }
+                }
                 return (
                   <div 
                     key={cat.id}
@@ -217,12 +214,20 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
                     style={{ 
                       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', 
                       padding: '12px 8px', borderRadius: '8px', cursor: 'pointer',
-                      border: isSelected ? '2px solid var(--primary-color)' : '1px solid var(--gray-200)',
-                      background: isSelected ? '#e0f2ec' : '#fff'
+                      border: isSelected 
+                        ? '2px solid var(--primary-color)' 
+                        : isAutoDetected 
+                          ? '2px dashed var(--primary-color)' 
+                          : '1px solid var(--gray-200)',
+                      background: isSelected 
+                        ? '#e0f2ec' 
+                        : isAutoDetected 
+                          ? '#f0fdf4' 
+                          : '#fff'
                     }}
                   >
-                    <Icon size={24} color={isSelected ? 'var(--primary-color)' : 'var(--gray-400)'} style={{ marginBottom: '4px' }} />
-                    <span style={{ fontSize: '12px', color: isSelected ? 'var(--primary-color)' : 'var(--gray-600)', fontWeight: isSelected ? 'bold' : 'normal' }}>
+                    <Icon size={24} color={isSelected || isAutoDetected ? 'var(--primary-color)' : 'var(--gray-400)'} style={{ marginBottom: '4px' }} />
+                    <span style={{ fontSize: '12px', color: isSelected || isAutoDetected ? 'var(--primary-color)' : 'var(--gray-600)', fontWeight: isSelected || isAutoDetected ? 'bold' : 'normal' }}>
                       {cat.name}
                     </span>
                   </div>
@@ -257,9 +262,9 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
           </div>
            {category && (
             <div style={{ fontSize: '12px', color: 'var(--gray-400)', marginTop: '-12px' }}>
-              {category.id === 'auto' 
-                ? '* AI 추천: 식재료 이름(예: 삼겹살, 상추 등)을 분석하여 최적의 유통기한이 저장 시 자동 지정됩니다.'
-                : `* AI 추천: ${category.name}의 일반적 유통기한 적용`}
+              {isAutoDetect 
+                ? `* 자동 설정 활성: 이름 분석 결과 [${category.name}] 카테고리 및 유통기한 감지됨`
+                : `* 수동 지정 활성: [${category.name}] 카테고리의 일반적 유통기한 적용`}
             </div>
           )}
 
