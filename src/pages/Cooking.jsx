@@ -478,6 +478,9 @@ const Cooking = () => {
 
     setHouseholdData('ingredients', updatedIngredients);
     
+    // Hide checklist and show result screen
+    setShowChecklist(false);
+    
     // Set result screen data
     setCookingResult({
       name: selectedRecipe.name,
@@ -876,7 +879,63 @@ const Cooking = () => {
               </button>
             </div>
 
-            {showChecklist ? (
+            {cookingResult ? (
+              /* ===== D. COOKING RESULT SCREEN ===== */
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '16px 0', textAlign: 'center' }}>
+                <div style={{ fontSize: '64px', animation: 'bounce 1s infinite' }}>✅</div>
+                
+                <h3 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--primary-color)', margin: 0, lineHeight: '1.4' }}>
+                  냉장고 정리 완료!
+                </h3>
+                
+                <p style={{ fontSize: '12px', color: 'var(--gray-500)', marginTop: '-8px' }}>
+                  {cookingResult.name} 요리에 사용한 식재료가 냉장고에서 정리되었습니다.
+                </p>
+
+                {cookingResult.used.length > 0 && (
+                  <div style={{ background: '#fff5f5', border: '1px solid #feb2b2', padding: '14px 16px', borderRadius: '14px', textAlign: 'left' }}>
+                    <h4 style={{ fontSize: '13px', fontWeight: 'bold', color: '#e53e3e', margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      🗑️ 삭제된 식재료 ({cookingResult.used.length}개)
+                    </h4>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                      {cookingResult.used.map((name, idx) => (
+                        <span key={idx} style={{ fontSize: '11px', background: '#ffffff', color: '#c53030', border: '1px solid #feb2b2', padding: '3px 8px', borderRadius: '6px', fontWeight: 'bold' }}>
+                          ❌ {name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {cookingResult.leftovers.length > 0 && (
+                  <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '14px 16px', borderRadius: '14px', textAlign: 'left' }}>
+                    <h4 style={{ fontSize: '13px', fontWeight: 'bold', color: '#166534', margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      ✅ 남은 식재료 ({cookingResult.leftovers.length}개)
+                    </h4>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                      {cookingResult.leftovers.map((name, idx) => (
+                        <span key={idx} style={{ fontSize: '11px', background: '#ffffff', color: '#166534', border: '1px solid #86efac', padding: '3px 8px', borderRadius: '6px', fontWeight: 'bold' }}>
+                          🧊 {name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <button 
+                  onClick={handleCloseAll}
+                  className="btn-primary"
+                  style={{
+                    width: '100%', padding: '14px', margin: 0, marginTop: '10px',
+                    fontSize: '14px', fontWeight: 'bold',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
+                  }}
+                >
+                  <Utensils size={16} /> 완료
+                </button>
+              </div>
+            ) : showChecklist ? (
+              /* ===== C. USAGE CHECKLIST SCREEN ===== */
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '16px 0', textAlign: 'center' }}>
                 <div style={{ fontSize: '64px', animation: 'bounce 1s infinite' }}>🎉</div>
                 

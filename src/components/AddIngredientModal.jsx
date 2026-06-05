@@ -38,7 +38,7 @@ const getFallbackItems = () => [
 ];
 
 const parseOcrText = (text) => {
-  if (!text || text.trim().length < 5) return getFallbackItems();
+  if (!text || text.trim().length < 5) return [];
   
   const lines = text.split('\n');
   const items = [];
@@ -60,7 +60,7 @@ const parseOcrText = (text) => {
     }
   });
   
-  if (items.length === 0) return getFallbackItems();
+  if (items.length === 0) return [];
   return items.slice(0, 8);
 };
 
@@ -729,6 +729,52 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
           [itemName]: !prev[itemName]
         }));
       };
+
+      // 영수증에서 아무 품목도 인식되지 않은 경우
+      if (receiptItems.length === 0) {
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center', padding: '20px 0' }}>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', background: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid var(--gray-200)', width: '100%' }}>
+              {capturedImage ? (
+                <img 
+                  src={capturedImage} 
+                  alt="Captured receipt" 
+                  style={{ width: '60px', height: '80px', objectFit: 'cover', borderRadius: '6px', border: '1px solid var(--gray-300)' }} 
+                />
+              ) : (
+                <div style={{ width: '60px', height: '80px', backgroundColor: '#e2e8f0', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
+                  📄
+                </div>
+              )}
+              <div style={{ flex: 1 }}>
+                <h3 style={{ fontSize: '15px', fontWeight: 'bold', color: 'var(--text-black)', margin: '0 0 4px 0' }}>영수증 분석 결과</h3>
+                <p style={{ color: 'var(--gray-500)', fontSize: '11px', margin: 0, lineHeight: '1.3' }}>촬영한 사진을 분석했습니다.</p>
+              </div>
+            </div>
+
+            <div style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px',
+              background: '#fff7ed', border: '1px solid #fed7aa', padding: '28px 20px', borderRadius: '16px', width: '100%', boxSizing: 'border-box'
+            }}>
+              <span style={{ fontSize: '48px' }}>🔍</span>
+              <h4 style={{ fontSize: '16px', fontWeight: 'bold', color: '#ea580c', margin: 0 }}>인식된 식재료가 없습니다.</h4>
+              <p style={{ fontSize: '12px', color: 'var(--gray-500)', margin: 0, textAlign: 'center', lineHeight: '1.5' }}>
+                영수증의 글씨가 잘 보이도록 다시 촬영해 주세요.<br />
+                또렷하고 밝은 환경에서 촬영하면 인식률이 높아집니다.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+              <button className="btn-primary" style={{ flex: 1, background: '#f1f5f9', color: 'var(--gray-500)', border: 'none' }} onClick={() => setStep('camera')}>
+                다시 촬영
+              </button>
+              <button className="btn-primary" style={{ flex: 1, background: '#f1f5f9', color: 'var(--gray-500)', border: 'none' }} onClick={() => setStep('select-method')}>
+                직접 입력하기
+              </button>
+            </div>
+          </div>
+        );
+      }
 
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto', maxHeight: '65vh' }}>
