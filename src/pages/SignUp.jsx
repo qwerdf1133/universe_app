@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import { 
-  checkDuplicateIdInFirebase, 
-  checkDuplicateNicknameInFirebase, 
-  signUpUserInFirebase, 
+import {
+  checkDuplicateIdInFirebase,
+  checkDuplicateNicknameInFirebase,
+  signUpUserInFirebase,
   updateUserHouseholdInFirebase,
   db
 } from '../utils/firebase';
@@ -153,8 +153,8 @@ const SignUp = () => {
     try {
       // Firestore에서 유효한 가구 코드인지 검증
       const q = query(
-        collection(db, "users"), 
-        where("householdCode", "==", enteredCode.toUpperCase()), 
+        collection(db, "users"),
+        where("householdCode", "==", enteredCode.toUpperCase()),
         where("householdType", "==", "가구 생성")
       );
       const querySnapshot = await getDocs(q);
@@ -189,7 +189,7 @@ const SignUp = () => {
   return (
     <div className="page-container" style={{ padding: '20px', position: 'relative' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', marginTop: '20px' }}>
-        <button 
+        <button
           onClick={() => navigate('/login')}
           style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
         >
@@ -243,7 +243,7 @@ const SignUp = () => {
         {/* Password input */}
         <input
           type="password"
-          placeholder="비밀번호"
+          placeholder="비밀번호 (최소 6자 이상)"
           className="input-field"
           style={{ marginBottom: 0 }}
           value={password}
