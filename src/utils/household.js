@@ -1,3 +1,5 @@
+import { saveHouseholdDataInFirebase } from './firebase';
+
 /**
  * 가구 공유 데이터 접근 유틸리티
  * 모든 식재료, 장보기, 구성원 요청 데이터는 가구 코드 단위로 공유됩니다.
@@ -61,6 +63,7 @@ export const getHouseholdData = (key, defaultValue = []) => {
   }
 };
 
+
 /**
  * 가구 공유 데이터를 씁니다.
  * @param {string} key - 데이터 키
@@ -69,6 +72,16 @@ export const getHouseholdData = (key, defaultValue = []) => {
 export const setHouseholdData = (key, data) => {
   const storageKey = getHouseholdKey(key);
   localStorage.setItem(storageKey, JSON.stringify(data));
+
+  // Firebase Firestore 백그라운드 동기화
+  const user = getCurrentUserFull();
+  if (user && user.id) {
+    const code = user.householdCode;
+    const syncKey = code || `user_${user.id}`;
+    saveHouseholdDataInFirebase(syncKey, key, data).catch(err => {
+      console.error(`Firebase Firestore sync failed for key "${key}":`, err);
+    });
+  }
 };
 
 /**

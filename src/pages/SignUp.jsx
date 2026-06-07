@@ -1,12 +1,21 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
+import { 
+  checkDuplicateIdInFirebase, 
+  checkDuplicateNicknameInFirebase, 
+  signUpUserInFirebase, 
+  updateUserHouseholdInFirebase,
+  db
+} from '../utils/firebase';
+import { query, collection, where, getDocs } from 'firebase/firestore';
 
 const SignUp = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
 
   const [id, setId] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [nickname, setNickname] = useState('');
@@ -23,122 +32,159 @@ const SignUp = () => {
   const [generatedCode, setGeneratedCode] = useState('');
   const [enteredCode, setEnteredCode] = useState('');
 
-  const checkDuplicateId = () => {
+  const checkDuplicateId = async () => {
     if (!id) {
       setIdCheckMsg('아이디를 입력해주세요.');
       setIsIdChecked(false);
       return;
     }
-    const usersStr = localStorage.getItem('users');
-    const users = usersStr ? JSON.parse(usersStr) : [];
-    const isDup = users.some(u => u.id === id) || id === 'admin';
-
-    if (isDup) {
-      setIdCheckMsg('이미 사용 중인 아이디 입니다.');
+    try {
+      const isDup = await checkDuplicateIdInFirebase(id) || id === 'admin';
+      if (isDup) {
+        setIdCheckMsg('이미 사용 중인 아이디 입니다.');
+        setIsIdChecked(false);
+      } else {
+        setIdCheckMsg('사용 가능한 아이디 입니다.');
+        setIsIdChecked(true);
+      }
+    } catch (e) {
+      console.error(e);
+      setIdCheckMsg('중복확인 중 오류가 발생했습니다.');
       setIsIdChecked(false);
-    } else {
-      setIdCheckMsg('사용 가능한 아이디 입니다.');
-      setIsIdChecked(true);
     }
   };
 
-  const checkDuplicateNickname = () => {
+  const checkDuplicateNickname = async () => {
     if (!nickname) {
       setNicknameCheckMsg('닉네임을 입력해주세요.');
       setIsNicknameChecked(false);
       return;
     }
-    const usersStr = localStorage.getItem('users');
-    const users = usersStr ? JSON.parse(usersStr) : [];
-    const isDup = users.some(u => u.nickname === nickname) || nickname === '관리자';
-
-    if (isDup) {
-      setNicknameCheckMsg('이미 사용 중인 닉네임 입니다.');
+    try {
+      const isDup = await checkDuplicateNicknameInFirebase(nickname) || nickname === '관리자';
+      if (isDup) {
+        setNicknameCheckMsg('이미 사용 중인 닉네임 입니다.');
+        setIsNicknameChecked(false);
+      } else {
+        setNicknameCheckMsg('사용 가능한 닉네임 입니다.');
+        setIsNicknameChecked(true);
+      }
+    } catch (e) {
+      console.error(e);
+      setNicknameCheckMsg('중복확인 중 오류가 발생했습니다.');
       setIsNicknameChecked(false);
-    } else {
-      setNicknameCheckMsg('사용 가능한 닉네임 입니다.');
-      setIsNicknameChecked(true);
     }
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (!isIdChecked) return alert('아이디 중복확인을 해주세요.');
+    if (!email) return alert('이메일을 입력해주세요.');
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) return alert('올바른 이메일 형식을 입력해주세요.');
     if (!password) return alert('비밀번호를 입력해주세요.');
     if (password !== passwordConfirm) return alert('비밀번호가 일치하지 않습니다.');
     if (!isNicknameChecked) return alert('닉네임 중복확인을 해주세요.');
 
-    // Process Signup & Open Household Modal
-    const usersStr = localStorage.getItem('users');
-    const users = usersStr ? JSON.parse(usersStr) : [];
+    try {
+      // 1. Firebase Auth 및 Firestore 계정 생성
+      await signUpUserInFirebase(id, email, password, nickname);
 
-    users.push({
-      id,
-      password,
-      nickname,
-      householdCode: '',
-      householdType: '미정'
-    });
+      // Save current user session locally
+      localStorage.setItem('currentUser', JSON.stringify({ id, nickname }));
 
-    localStorage.setItem('users', JSON.stringify(users));
+      // Clear local storage data
+      localStorage.removeItem('ingredients');
+      localStorage.removeItem('shopping-list');
+      localStorage.removeItem('member-requests');
 
-    // Save current user session
-    localStorage.setItem('currentUser', JSON.stringify({ id, nickname }));
+      // Update local storage users for backward compatibility
+      const usersStr = localStorage.getItem('users');
+      const users = usersStr ? JSON.parse(usersStr) : [];
+      users.push({
+        id,
+        nickname,
+        householdCode: '',
+        householdType: '미정'
+      });
+      localStorage.setItem('users', JSON.stringify(users));
 
-    // Clear any existing dummy data for the new user
-    localStorage.removeItem('ingredients');
-    localStorage.removeItem('shopping-list');
-    localStorage.removeItem('member-requests');
-
-    // Show Household Modal
-    setShowHouseholdModal(true);
+      // Show Household Modal
+      setShowHouseholdModal(true);
+      alert('인증 이메일이 발송되었습니다. 이메일을 확인해 주세요!');
+    } catch (e) {
+      console.error(e);
+      alert(`회원가입 오류: ${e.message}`);
+    }
   };
 
   // Generate 6-digit random code
-  const generateHouseholdCode = () => {
+  const generateHouseholdCode = async () => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let code = '';
     for (let i = 0; i < 6; i++) {
       code += chars.charAt(Math.floor(Math.random() * chars.length));
     }
 
-    // Save to user profile
-    const usersStr = localStorage.getItem('users');
-    if (usersStr) {
-      const users = JSON.parse(usersStr);
-      const updated = users.map(u => u.id === id ? { ...u, householdCode: code, householdType: '가구 생성' } : u);
-      localStorage.setItem('users', JSON.stringify(updated));
-    }
+    try {
+      // Save to Firestore user profile
+      await updateUserHouseholdInFirebase(id, code, '가구 생성');
 
-    setGeneratedCode(code);
-    setHouseholdSubStep('create');
+      // Update local users
+      const usersStr = localStorage.getItem('users');
+      if (usersStr) {
+        const users = JSON.parse(usersStr);
+        const updated = users.map(u => u.id === id ? { ...u, householdCode: code, householdType: '가구 생성' } : u);
+        localStorage.setItem('users', JSON.stringify(updated));
+      }
+
+      setGeneratedCode(code);
+      setHouseholdSubStep('create');
+    } catch (e) {
+      console.error(e);
+      alert(`가구 생성 오류: ${e.message}`);
+    }
   };
 
-  const handleJoinHousehold = () => {
+  const handleJoinHousehold = async () => {
     if (enteredCode.length !== 6) {
       return alert('6자리 가구 코드를 입력해주세요.');
     }
 
-    const usersStr = localStorage.getItem('users');
-    const users = usersStr ? JSON.parse(usersStr) : [];
-    
-    // Check if the entered code exists among generated codes (i.e. users with householdType === '가구 생성' and householdCode === enteredCode)
-    const isCodeValid = users.some(u => u.householdCode === enteredCode.toUpperCase() && u.householdType === '가구 생성');
-    
-    if (!isCodeValid) {
-      return alert('존재하지 않는 가구 코드입니다. 다시 확인 후 입력해주세요.');
+    try {
+      // Firestore에서 유효한 가구 코드인지 검증
+      const q = query(
+        collection(db, "users"), 
+        where("householdCode", "==", enteredCode.toUpperCase()), 
+        where("householdType", "==", "가구 생성")
+      );
+      const querySnapshot = await getDocs(q);
+      const isCodeValid = !querySnapshot.empty;
+
+      if (!isCodeValid) {
+        return alert('존재하지 않는 가구 코드입니다. 다시 확인 후 입력해주세요.');
+      }
+
+      // Save to Firestore
+      await updateUserHouseholdInFirebase(id, enteredCode.toUpperCase(), '가구 참가');
+
+      // Update local users
+      const usersStr = localStorage.getItem('users');
+      const users = usersStr ? JSON.parse(usersStr) : [];
+      const updated = users.map(u => u.id === id ? { ...u, householdCode: enteredCode.toUpperCase(), householdType: '가구 참가' } : u);
+      localStorage.setItem('users', JSON.stringify(updated));
+
+      alert(`코드 [${enteredCode.toUpperCase()}] 가구에 참가하였습니다!`);
+      navigate('/setup');
+    } catch (e) {
+      console.error(e);
+      alert(`가구 참가 오류: ${e.message}`);
     }
-
-    // Save to user profile
-    const updated = users.map(u => u.id === id ? { ...u, householdCode: enteredCode.toUpperCase(), householdType: '가구 참가' } : u);
-    localStorage.setItem('users', JSON.stringify(updated));
-
-    alert(`코드 [${enteredCode.toUpperCase()}] 가구에 참가하였습니다!`);
-    navigate('/setup');
   };
 
   const handleCompleteSignUp = () => {
     navigate('/setup');
   };
+
 
   return (
     <div className="page-container" style={{ padding: '20px', position: 'relative' }}>
@@ -183,6 +229,16 @@ const SignUp = () => {
             </span>
           )}
         </div>
+
+        {/* Email input */}
+        <input
+          type="email"
+          placeholder="이메일"
+          className="input-field"
+          style={{ marginBottom: 0 }}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
 
         {/* Password input */}
         <input

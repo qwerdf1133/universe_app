@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Copy, Check, LogOut, UserMinus, ShieldAlert, Award } from 'lucide-react';
+import { updateUserInFirebase, signOutUser, deleteUserAccount } from '../utils/firebase';
 
 const AVATARS = ['😎', '👩', '👨', '👶', '🦁', '🐯', '🐼', '🐰', '🦊', '🐱'];
 
@@ -34,31 +35,38 @@ const SettingsModal = ({ isOpen, onClose }) => {
   if (!isOpen || !currentUser) return null;
 
   // Handle Profile Update
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
     if (!nickname.trim()) {
       alert('닉네임을 입력해 주세요.');
       return;
     }
 
-    const usersStr = localStorage.getItem('users');
-    if (usersStr) {
-      const users = JSON.parse(usersStr);
-      const updated = users.map(u => {
-        if (u.id === currentUser.id) {
-          return { ...u, nickname, avatar: selectedAvatar };
-        }
-        return u;
-      });
-      localStorage.setItem('users', JSON.stringify(updated));
+    try {
+      // Update in Firebase Firestore
+      await updateUserInFirebase(currentUser.id, { nickname, avatar: selectedAvatar });
+
+      const usersStr = localStorage.getItem('users');
+      if (usersStr) {
+        const users = JSON.parse(usersStr);
+        const updated = users.map(u => {
+          if (u.id === currentUser.id) {
+            return { ...u, nickname, avatar: selectedAvatar };
+          }
+          return u;
+        });
+        localStorage.setItem('users', JSON.stringify(updated));
+      }
+
+      // Update currentUser session
+      localStorage.setItem('currentUser', JSON.stringify({ id: currentUser.id, nickname, avatar: selectedAvatar }));
+
+      // Dispatch custom event to notify all listening headers to refresh
+      window.dispatchEvent(new Event('profileUpdated'));
+      alert('변경이 완료되었습니다!');
+    } catch (e) {
+      console.error(e);
+      alert(`프로필 저장 오류: ${e.message}`);
     }
-
-    // Update currentUser session
-    const updatedSession = { ...currentUser, nickname, avatar: selectedAvatar };
-    localStorage.setItem('currentUser', JSON.stringify({ id: currentUser.id, nickname }));
-
-    // Dispatch custom event to notify all listening headers to refresh
-    window.dispatchEvent(new Event('profileUpdated'));
-    alert('변경이 완료되었습니다!');
   };
 
   // Handle Household Code Copy
@@ -71,16 +79,22 @@ const SettingsModal = ({ isOpen, onClose }) => {
   };
 
   // Handle Logout
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (window.confirm('정말 로그아웃 하시겠습니까?')) {
-      localStorage.removeItem('currentUser');
-      onClose();
-      navigate('/login');
+      try {
+        await signOutUser();
+        localStorage.removeItem('currentUser');
+        onClose();
+        navigate('/login');
+      } catch (e) {
+        console.error(e);
+        alert(`로그아웃 오류: ${e.message}`);
+      }
     }
   };
 
   // Handle Account Withdrawal (회원탈퇴)
-  const handleWithdrawal = () => {
+  const handleWithdrawal = async () => {
     const confirm1 = window.confirm(
       '⚠ 경고: 회원탈퇴 시 가구 매칭 정보 및 등록 정보가 모두 영구 삭제됩니다. 진행하시겠습니까?'
     );
@@ -94,19 +108,27 @@ const SettingsModal = ({ isOpen, onClose }) => {
       return;
     }
 
-    // Delete from users list
-    const usersStr = localStorage.getItem('users');
-    if (usersStr) {
-      const users = JSON.parse(usersStr);
-      const remaining = users.filter(u => u.id !== currentUser.id);
-      localStorage.setItem('users', JSON.stringify(remaining));
-    }
+    try {
+      // Delete from Firebase
+      await deleteUserAccount(currentUser.id);
 
-    // Clean up current user session
-    localStorage.removeItem('currentUser');
-    alert('회원탈퇴가 정상적으로 완료되었습니다. 그동안 이용해 주셔서 감사합니다.');
-    onClose();
-    navigate('/login');
+      // Delete from users list
+      const usersStr = localStorage.getItem('users');
+      if (usersStr) {
+        const users = JSON.parse(usersStr);
+        const remaining = users.filter(u => u.id !== currentUser.id);
+        localStorage.setItem('users', JSON.stringify(remaining));
+      }
+
+      // Clean up current user session
+      localStorage.removeItem('currentUser');
+      alert('회원탈퇴가 정상적으로 완료되었습니다. 그동안 이용해 주셔서 감사합니다.');
+      onClose();
+      navigate('/login');
+    } catch (e) {
+      console.error(e);
+      alert(`회원탈퇴 오류: ${e.message}`);
+    }
   };
 
   // Get current user household type details

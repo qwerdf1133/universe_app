@@ -530,8 +530,7 @@ const Cooking = () => {
       return;
     }
 
-    const stored = localStorage.getItem('shopping-list');
-    const list = stored ? JSON.parse(stored) : [];
+    const list = getHouseholdData('shopping-list', []);
     
     let addedCount = 0;
     let skippedCount = 0;
@@ -551,7 +550,7 @@ const Cooking = () => {
       addedCount++;
     });
 
-    localStorage.setItem('shopping-list', JSON.stringify(list));
+    setHouseholdData('shopping-list', list);
     
     let msg = `선택한 ${selectedList.length}개 중 ${addedCount}개의 재료를 장보기 목록에 추가했습니다!`;
     if (skippedCount > 0) {

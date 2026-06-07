@@ -175,23 +175,29 @@ const Home = () => {
   };
 
   useEffect(() => {
-    const list = getHouseholdData('ingredients', []);
+    const loadHomeData = () => {
+      const list = getHouseholdData('ingredients', []);
 
-    const today = new Date();
-    today.setHours(0,0,0,0);
+      const today = new Date();
+      today.setHours(0,0,0,0);
 
-    const expiring = list.filter(item => {
-      if (!item.expDate) return false; // 유통기한 미지정 항목 제외
-      const exp = new Date(item.expDate);
-      if (isNaN(exp.getTime())) return false;
-      exp.setHours(0,0,0,0);
-      const diffTime = exp - today;
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      return diffDays <= 7;
-    });
-    setExpiringItems(expiring);
+      const expiring = list.filter(item => {
+        if (!item.expDate) return false; // 유통기한 미지정 항목 제외
+        const exp = new Date(item.expDate);
+        if (isNaN(exp.getTime())) return false;
+        exp.setHours(0,0,0,0);
+        const diffTime = exp - today;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return diffDays <= 7;
+      });
+      setExpiringItems(expiring);
 
-    loadRecommendedRecipes(list);
+      loadRecommendedRecipes(list);
+    };
+
+    loadHomeData();
+    window.addEventListener('fridgeSync', loadHomeData);
+    return () => window.removeEventListener('fridgeSync', loadHomeData);
   }, []);
 
   return (

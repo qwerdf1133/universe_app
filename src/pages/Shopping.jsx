@@ -55,33 +55,29 @@ const Shopping = () => {
 
   // Load Initial Lists
   useEffect(() => {
-    // 1. My Shopping List
-    const storedShopping = localStorage.getItem('shopping-list');
-    if (!storedShopping) {
-      localStorage.setItem('shopping-list', JSON.stringify(INITIAL_SHOPPING));
-      setShoppingList(INITIAL_SHOPPING);
-    } else {
-      setShoppingList(JSON.parse(storedShopping));
-    }
+    const loadLists = () => {
+      // 1. My Shopping List
+      const storedShopping = getHouseholdData('shopping-list', INITIAL_SHOPPING);
+      setShoppingList(storedShopping);
 
-    // 2. Member Requests List
-    const storedRequests = localStorage.getItem('member-requests');
-    if (!storedRequests) {
-      localStorage.setItem('member-requests', JSON.stringify(INITIAL_MEMBER_REQUESTS));
-      setMemberRequests(INITIAL_MEMBER_REQUESTS);
-    } else {
-      setMemberRequests(JSON.parse(storedRequests));
-    }
+      // 2. Member Requests List
+      const storedRequests = getHouseholdData('member-requests', INITIAL_MEMBER_REQUESTS);
+      setMemberRequests(storedRequests);
+    };
+
+    loadLists();
+    window.addEventListener('fridgeSync', loadLists);
+    return () => window.removeEventListener('fridgeSync', loadLists);
   }, []);
 
   const saveShoppingList = (newList) => {
     setShoppingList(newList);
-    localStorage.setItem('shopping-list', JSON.stringify(newList));
+    setHouseholdData('shopping-list', newList);
   };
 
   const saveMemberRequests = (newList) => {
     setMemberRequests(newList);
-    localStorage.setItem('member-requests', JSON.stringify(newList));
+    setHouseholdData('member-requests', newList);
   };
 
 

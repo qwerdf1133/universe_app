@@ -30,6 +30,8 @@ const Ingredients = () => {
 
   useEffect(() => {
     loadData();
+    window.addEventListener('fridgeSync', loadData);
+    return () => window.removeEventListener('fridgeSync', loadData);
   }, []);
 
   const getFilteredIngredients = () => {

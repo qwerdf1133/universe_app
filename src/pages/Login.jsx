@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { signInUserInFirebase, getHouseholdDataFromFirebase } from '../utils/firebase';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -7,21 +8,52 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
-  const handleLogin = () => {
-    const usersStr = localStorage.getItem('users');
-    if (!usersStr) {
-      setErrorMsg('아이디 또는 비밀번호가 틀렸습니다');
+  const handleLogin = async () => {
+    if (!id || !password) {
+      setErrorMsg('아이디와 비밀번호를 입력해주세요.');
       return;
     }
-    
-    const users = JSON.parse(usersStr);
-    const user = users.find(u => u.id === id && u.password === password);
-    
-    if (user) {
+
+    try {
       setErrorMsg('');
-      localStorage.setItem('currentUser', JSON.stringify({ id: user.id, nickname: user.nickname }));
+      // 1. Firebase로 로그인
+      const userData = await signInUserInFirebase(id, password);
+
+      // Save currentUser locally
+      localStorage.setItem('currentUser', JSON.stringify({ id: userData.id, nickname: userData.nickname }));
+
+      // Update local storage users list cache
+      const usersStr = localStorage.getItem('users');
+      const users = usersStr ? JSON.parse(usersStr) : [];
+      if (!users.some(u => u.id === userData.id)) {
+        users.push(userData);
+        localStorage.setItem('users', JSON.stringify(users));
+      } else {
+        const updated = users.map(u => u.id === userData.id ? userData : u);
+        localStorage.setItem('users', JSON.stringify(updated));
+      }
+
+      // 2. 가구 냉장고 정보 로드 및 동기화
+      const code = userData.householdCode;
+      const syncKey = code || `user_${userData.id}`;
+      const householdData = await getHouseholdDataFromFirebase(syncKey);
+      
+      if (householdData) {
+        const prefix = code ? `_${code}` : '';
+        if (householdData.ingredients) {
+          localStorage.setItem(`ingredients${prefix}`, JSON.stringify(householdData.ingredients));
+        }
+        if (householdData['shopping-list']) {
+          localStorage.setItem(`shopping-list${prefix}`, JSON.stringify(householdData['shopping-list']));
+        }
+        if (householdData['member-requests']) {
+          localStorage.setItem(`member-requests${prefix}`, JSON.stringify(householdData['member-requests']));
+        }
+      }
+
       navigate('/home');
-    } else {
+    } catch (e) {
+      console.error(e);
       setErrorMsg('아이디 또는 비밀번호가 틀렸습니다');
     }
   };

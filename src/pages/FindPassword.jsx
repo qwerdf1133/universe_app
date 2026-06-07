@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { sendPasswordResetEmailByUsername } from '../utils/firebase';
 
 const FindPassword = () => {
   const navigate = useNavigate();
@@ -9,50 +10,28 @@ const FindPassword = () => {
   const [id, setId] = useState('');
   const [nickname, setNickname] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [sentEmail, setSentEmail] = useState('');
 
-  // Step 2 state
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-
-  const handleCheckUser = () => {
-    const usersStr = localStorage.getItem('users');
-    if (!usersStr) {
-      setErrorMsg('가입된 유저가 없습니다.');
+  const handleCheckUser = async () => {
+    if (!id || !nickname) {
+      setErrorMsg('아이디와 닉네임을 모두 입력해주세요.');
       return;
     }
     
-    const users = JSON.parse(usersStr);
-    const user = users.find(u => u.id === id && u.nickname === nickname);
-    
-    if (user) {
+    try {
       setErrorMsg('');
+      const email = await sendPasswordResetEmailByUsername(id, nickname);
+      setSentEmail(email);
       setStep(2);
-    } else {
-      setErrorMsg('입력하신 정보와 일치하는 계정이 없습니다.');
-    }
-  };
-
-  const handleChangePassword = () => {
-    if (newPassword !== confirmPassword) {
-      setErrorMsg('비밀번호가 일치하지 않습니다.');
-      return;
-    }
-
-    const usersStr = localStorage.getItem('users');
-    let users = JSON.parse(usersStr);
-    
-    const userIndex = users.findIndex(u => u.id === id);
-    if (userIndex !== -1) {
-      users[userIndex].password = newPassword;
-      localStorage.setItem('users', JSON.stringify(users));
-      alert('비밀번호가 변경되었습니다. 다시 로그인해주세요.');
-      navigate('/login');
+    } catch (e) {
+      console.error(e);
+      setErrorMsg(e.message || '입력하신 정보와 일치하는 계정이 없습니다.');
     }
   };
 
   return (
     <div className="page-container" style={{ padding: '20px', justifyContent: 'center' }}>
-      <div style={{ marginBottom: '40px' }}>
+      <div style={{ marginBottom: '40px', textAlign: 'center' }}>
         <h1 style={{ fontSize: '24px', fontWeight: 'bold' }}>비밀번호 찾기</h1>
       </div>
       
@@ -86,29 +65,23 @@ const FindPassword = () => {
           </div>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div>
-            <input 
-              type="password" 
-              placeholder="새 비밀번호" 
-              className="input-field" 
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-            />
-          </div>
-          <div>
-            <input 
-              type="password" 
-              placeholder="새 비밀번호 확인" 
-              className="input-field" 
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-            />
-          </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', textAlign: 'center' }}>
+          <div style={{ fontSize: '48px', marginBottom: '10px' }}>✉️</div>
+          <p style={{ fontSize: '16px', color: 'var(--text-black)', lineHeight: '1.6', fontWeight: '500' }}>
+            등록된 이메일 주소로<br />
+            <strong style={{ color: 'var(--primary-color)' }}>비밀번호 재설정 메일</strong>이 발송되었습니다.
+          </p>
+          {sentEmail && (
+            <p style={{ fontSize: '13px', background: '#f3f4f6', padding: '8px 12px', borderRadius: '8px', color: 'var(--gray-600)', wordBreak: 'break-all' }}>
+              수신 이메일: {sentEmail}
+            </p>
+          )}
+          <p style={{ fontSize: '13px', color: 'var(--gray-500)', lineHeight: '1.5' }}>
+            메일함의 링크를 클릭하여 비밀번호를 재설정하신 후,<br />
+            아래 버튼을 눌러 다시 로그인해 주세요.
+          </p>
           
-          {errorMsg && <div style={{ color: 'red', fontSize: '14px', marginBottom: '8px' }}>{errorMsg}</div>}
-          
-          <button className="btn-primary" onClick={handleChangePassword}>비밀번호 변경</button>
+          <button className="btn-primary" onClick={() => navigate('/login')} style={{ marginTop: '10px' }}>로그인으로 이동</button>
         </div>
       )}
     </div>
