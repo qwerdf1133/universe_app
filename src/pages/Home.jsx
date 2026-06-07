@@ -110,19 +110,21 @@ const Home = () => {
     }
 
     const scored = apiRecipes.map(recipe => {
-      const matchIngredientsSafe = recipe.matchIngredients || [];
-      
-      let expiringMatchCount = 0;
-      matchIngredientsSafe.forEach(m => {
-        if (expiring.some(item => isIngredientMatched(item.name, m))) {
-          expiringMatchCount++;
-        }
-      });
-      
+      // parsedIngredients를 단일 기준으로 사용: 없으면 matchIngredients로 대체
+      const parsedIngredients = (recipe.parsedIngredients && recipe.parsedIngredients.length > 0)
+        ? recipe.parsedIngredients
+        : (recipe.matchIngredients || []).map(m => ({ cleanName: m, quantity: '', fullName: m }));
+
       let ownedMatchCount = 0;
-      matchIngredientsSafe.forEach(m => {
-        if (list.some(item => isIngredientMatched(item.name, m))) {
+      let expiringMatchCount = 0;
+
+      // 레시피 재료 기준으로 순회 (중복 카운팅 방지)
+      parsedIngredients.forEach(p => {
+        if (list.some(item => isIngredientMatched(item.name, p.cleanName))) {
           ownedMatchCount++;
+          if (expiring.some(item => isIngredientMatched(item.name, p.cleanName))) {
+            expiringMatchCount++;
+          }
         }
       });
       

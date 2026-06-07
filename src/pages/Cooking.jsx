@@ -336,25 +336,36 @@ const Cooking = () => {
     setAllRecipes(fetched);
 
     const matched = fetched.map(recipe => {
-      const matchIngredientsSafe = recipe.matchIngredients || [];
-      const matchedOwnedItems = list.filter(item => 
-        matchIngredientsSafe.some(m => isIngredientMatched(item.name, m))
-      );
+      // parsedIngredients를 단일 기준으로 사용: 없으면 matchIngredients로 대체
+      const parsedIngredients = recipe.parsedIngredients && recipe.parsedIngredients.length > 0
+        ? recipe.parsedIngredients
+        : (recipe.matchIngredients || []).map(m => ({ cleanName: m, quantity: '', fullName: m }));
 
-      let matchCount = 0;
+      // 각 레시피 재료에 대해 냉장고 보유 여부 판단
+      const seenOwnedIds = new Set();
+      const matchedOwnedItems = [];
+      const matchedIngredientCount = { count: 0 };
       let expiringBonus = 0;
-      
-      matchIngredientsSafe.forEach(m => {
-        if (list.some(item => isIngredientMatched(item.name, m))) {
-          matchCount++;
-          if (expiringList.some(item => isIngredientMatched(item.name, m))) {
-            expiringBonus += 10; 
+
+      parsedIngredients.forEach(p => {
+        const matchingOwned = list.find(item => isIngredientMatched(item.name, p.cleanName));
+        if (matchingOwned) {
+          matchedIngredientCount.count++;
+          if (expiringList.some(item => isIngredientMatched(item.name, p.cleanName))) {
+            expiringBonus += 10;
+          }
+          if (!seenOwnedIds.has(matchingOwned.id)) {
+            matchedOwnedItems.push(matchingOwned);
+            seenOwnedIds.add(matchingOwned.id);
           }
         }
       });
 
+      const matchCount = matchedIngredientCount.count;
+
       return {
         ...recipe,
+        parsedIngredients,
         matchCount,
         sortScore: matchCount + expiringBonus,
         matchedOwnedItems
@@ -398,15 +409,25 @@ const Cooking = () => {
   const handleStartCooking = () => {
     if (!pendingRecipe) return;
     
-    // Recalculate matchedOwnedItems with latest refrigerator state
+    // parsedIngredients 기준으로 최신 냉장고 상태에서 보유 재료 재계산
     const latestIngredients = getHouseholdData('ingredients', []);
-    const matchIngredientsSafe = pendingRecipe.matchIngredients || [];
-    const matchedOwnedItems = latestIngredients.filter(item => 
-      matchIngredientsSafe.some(m => isIngredientMatched(item.name, m))
-    );
+    const parsedIngredients = pendingRecipe.parsedIngredients && pendingRecipe.parsedIngredients.length > 0
+      ? pendingRecipe.parsedIngredients
+      : (pendingRecipe.matchIngredients || []).map(m => ({ cleanName: m, quantity: '', fullName: m }));
+
+    const seenOwnedIds = new Set();
+    const matchedOwnedItems = [];
+    parsedIngredients.forEach(p => {
+      const matchingOwned = latestIngredients.find(item => isIngredientMatched(item.name, p.cleanName));
+      if (matchingOwned && !seenOwnedIds.has(matchingOwned.id)) {
+        matchedOwnedItems.push(matchingOwned);
+        seenOwnedIds.add(matchingOwned.id);
+      }
+    });
 
     const recipe = {
       ...pendingRecipe,
+      parsedIngredients,
       matchedOwnedItems
     };
     
