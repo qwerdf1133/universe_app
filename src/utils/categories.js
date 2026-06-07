@@ -1,6 +1,6 @@
-import { 
-  Carrot, Apple, Beef, Fish, Milk, Egg, Waves, Wheat, Package, 
-  Croissant, CupSoda, Soup, Flame, Droplet, Leaf, Snowflake, Box, Sparkles 
+import {
+  Carrot, Apple, Beef, Fish, Milk, Egg, Waves, Wheat, Package,
+  Croissant, CupSoda, Soup, Flame, Droplet, Leaf, Snowflake, Box, Sparkles
 } from 'lucide-react';
 
 export const CATEGORIES = [
@@ -39,11 +39,37 @@ export const detectCategoryByFoodName = (name) => {
 export const getAutoExpiryDate = (name, pDateStr) => {
   const pDate = pDateStr ? new Date(pDateStr) : new Date();
   const matchedCat = detectCategoryByFoodName(name);
-  if (matchedCat && matchedCat.defaultExpDays !== null) {
-    pDate.setDate(pDate.getDate() + matchedCat.defaultExpDays);
-    return pDate.toISOString().split('T')[0];
-  }
-  return '';
+  const expDays = (matchedCat && matchedCat.defaultExpDays !== null) ? matchedCat.defaultExpDays : 7;
+  pDate.setDate(pDate.getDate() + expDays);
+  return pDate.toISOString().split('T')[0];
+};
+
+export const getBaseIngredientName = (name) => {
+  if (!name) return '';
+  let clean = name.trim();
+
+  // 1. Remove parentheses and bracket metadata (e.g. 소고기(국거리용) -> 소고기)
+  clean = clean.replace(/\([^)]*\)/g, '');
+  clean = clean.replace(/\[[^\]]*\]/g, '');
+
+  // 2. Remove trailing numbers/fractions and unit suffixes (e.g., 올리브유 30g, 양파 1/2개)
+  clean = clean.replace(/[\s\d\/\.\~\-]+(?:g|kg|ml|l|L|개|입|마리|봉지?|대|뿌리|쪽|알|통|줌|꼬집|큰술|작은술|컵|숟가락|스푼|Ts|ts|T|t|팩|캔|병|조각|장|공기|인분)?$/gi, '');
+
+  // 3. Remove trailing standalone units or quantities (e.g., 대파 약간, 소금 적당량)
+  clean = clean.replace(/\s*(?:g|kg|ml|l|L|개|입|마리|봉지?|대|뿌리|쪽|알|통|줌|꼬집|큰술|작은술|컵|숟가락|스푼|Ts|ts|T|t|팩|캔|병|조각|장|공기|인분|약간|적당량|적당히|조금|취향껏|한꼬집)$/gi, '');
+
+  // 4. Remove trailing numbers (e.g., 올리브유 30)
+  clean = clean.replace(/\s+[\d\/\.\~\-]+$/g, '');
+
+  return clean.trim();
+};
+
+export const isIngredientMatched = (ownedName, recipeName) => {
+  if (!ownedName || !recipeName) return false;
+  const ownedBase = getBaseIngredientName(ownedName).toLowerCase().replace(/\s+/g, '');
+  const recipeBase = getBaseIngredientName(recipeName).toLowerCase().replace(/\s+/g, '');
+  if (!ownedBase || !recipeBase) return false;
+  return ownedBase.includes(recipeBase) || recipeBase.includes(ownedBase);
 };
 
 export const getFoodIcon = (name, category) => {
@@ -56,7 +82,7 @@ export const getFoodIcon = (name, category) => {
   if (n.includes('계란') || n.includes('달걀') || n.includes('알')) return '🥚';
   if (n.includes('사과') || n.includes('바나나') || n.includes('과일')) return '🍎';
   if (n.includes('만두') || n.includes('피자') || n.includes('튀김')) return '🥟';
-  
+
   // Category Fallbacks
   if (category === '채소') return '🥬';
   if (category === '과일') return '🍎';
@@ -85,7 +111,7 @@ export const parseIngredientsList = (ingredientsStr) => {
   for (let raw of rawItems) {
     let text = raw.trim();
     if (!text) continue;
-    
+
     // Remove headers like ●주재료 :, ●양념장 :, [1인분], ·, *, etc.
     text = text.replace(/●[^:]+:/g, '');
     text = text.replace(/\[[^\]]+\]/g, '');

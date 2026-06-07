@@ -37,24 +37,112 @@ const getFallbackItems = () => [
   { name: '고무장갑', quantity: '1개' }
 ];
 
+const extractDatesFromText = (text) => {
+  if (!text) return { expDate: '', purchaseDate: '' };
+  
+  const dates = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayStr = today.toISOString().split('T')[0];
+  
+  // Pattern 1: YYYY.MM.DD or YY.MM.DD with delimiters . - / or spaces
+  const pattern1 = /\b(?:20)?(\d{2})[\.\-\/\s](0?[1-9]|1[0-2])[\.\-\/\s](0?[1-9]|[12]\d|3[01])\b/g;
+  let match;
+  while ((match = pattern1.exec(text)) !== null) {
+    const year = parseInt(match[1]) < 50 ? 2000 + parseInt(match[1]) : 1900 + parseInt(match[1]);
+    const month = parseInt(match[2]);
+    const day = parseInt(match[3]);
+    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    if (!isNaN(new Date(dateStr).getTime())) {
+      dates.push(dateStr);
+    }
+  }
+  
+  // Pattern 2: YYYY년 MM월 DD일 or YY년 MM월 DD일
+  const pattern2 = /(?:20)?(\d{2})년\s*(0?[1-9]|1[0-2])월\s*(0?[1-9]|[12]\d|3[01])일/g;
+  while ((match = pattern2.exec(text)) !== null) {
+    const year = parseInt(match[1]) < 50 ? 2000 + parseInt(match[1]) : 1900 + parseInt(match[1]);
+    const month = parseInt(match[2]);
+    const day = parseInt(match[3]);
+    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    if (!isNaN(new Date(dateStr).getTime())) {
+      dates.push(dateStr);
+    }
+  }
+
+  // 8 digit dates like 20260615
+  const pattern3 = /\b20(\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\b/g;
+  while ((match = pattern3.exec(text)) !== null) {
+    const year = 2000 + parseInt(match[1]);
+    const month = parseInt(match[2]);
+    const day = parseInt(match[3]);
+    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    if (!isNaN(new Date(dateStr).getTime())) {
+      dates.push(dateStr);
+    }
+  }
+
+  const uniqueDates = [...new Set(dates)].sort();
+  const expCandidates = uniqueDates.filter(d => d > todayStr);
+  const purchaseCandidates = uniqueDates.filter(d => d <= todayStr);
+  
+  return {
+    expDate: expCandidates.length > 0 ? expCandidates[0] : '',
+    purchaseDate: purchaseCandidates.length > 0 ? purchaseCandidates[purchaseCandidates.length - 1] : ''
+  };
+};
+
 const parseOcrText = (text) => {
   if (!text || text.trim().length < 5) return [];
   
   const lines = text.split('\n');
   const items = [];
-  const excludeKeywords = ['합계', '금액', '가액', '세율', '면세', '부가세', '단가', '수량', '원', '일자', '번호', '신용', '승인', '대표', '전화', '주소', '사업자', '마트', '영수증', '고객', '할인', '반품'];
   
+  const excludeKeywords = [
+    '합계', '금액', '가액', '세율', '면세', '부가세', '단가', '수량', '원', 
+    '일자', '번호', '신용', '승인', '대표', '전화', '주소', '사업자', '마트', 
+    '영수증', '고객', '할인', '반품', '과세', '소비자', '카드', '현금',
+    '유통기한', '소비기한', '제조일', '년', '월', '일', 'exp', 'EXP', '까지'
+  ];
+  
+  const datePattern = /(?:\d{2,4}[\.\-\/\s]+\d{1,2}[\.\-\/\s]+\d{1,2})|(?:\d{2,4}년\s*\d{1,2}월\s*\d{1,2}일)/;
+
   lines.forEach(line => {
-    let cleaned = line.trim();
-    cleaned = cleaned.replace(/[\d,]+/g, ' ').trim();
-    cleaned = cleaned.replace(/[^\w\sㄱ-ㅎㅏ-ㅣ가-힣]/g, '').trim();
+    let rawLine = line.trim();
+    if (!rawLine) return;
+
+    if (datePattern.test(rawLine) || /유통기한|소비기한|제조일|EXP/i.test(rawLine)) {
+      return;
+    }
+
+    const shouldExclude = excludeKeywords.some(kw => rawLine.includes(kw));
+    if (shouldExclude) return;
+
+    if (!/[가-힣]/.test(rawLine)) return;
+
+    let name = rawLine;
+    let quantity = '1개';
+
+    const quantMatch = rawLine.match(/^(.*?)\s+(\d+(?:\.\d+)?\s*(?:g|kg|ml|l|L|개|입|마리|봉지?|대|뿌리|쪽|알|통|줌|꼬집|팩|캔|병|조각|장|공기|인분))$/i);
+    const quantMatchNoSpace = rawLine.match(/^(.*?)(\d+(?:\.\d+)?\s*(?:g|kg|ml|l|L|개|입|마리|봉지?|대|뿌리|쪽|알|통|줌|꼬집|팩|캔|병|조각|장|공기|인분))$/i);
     
-    if (cleaned.length >= 2 && cleaned.length <= 15) {
-      const shouldExclude = excludeKeywords.some(kw => cleaned.includes(kw));
-      if (!shouldExclude) {
+    if (quantMatch) {
+      name = quantMatch[1].trim();
+      quantity = quantMatch[2].trim();
+    } else if (quantMatchNoSpace) {
+      name = quantMatchNoSpace[1].trim();
+      quantity = quantMatchNoSpace[2].trim();
+    }
+
+    name = name.replace(/[^\w\sㄱ-ㅎㅏ-ㅣ가-힣\(\)\[\]]/g, '').trim();
+    name = name.replace(/[\d,]+/g, ' ').trim();
+
+    if (name.length >= 2 && name.length <= 25) {
+      const finalExclude = excludeKeywords.some(kw => name.includes(kw));
+      if (!finalExclude && /[가-힣]/.test(name)) {
         items.push({
-          name: cleaned,
-          quantity: '1개'
+          name,
+          quantity
         });
       }
     }
@@ -78,6 +166,10 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
   const [expDate, setExpDate] = useState('');
   const [storageLocation, setStorageLocation] = useState('냉장'); // '실온', '냉장', '냉동'
   const [memo, setMemo] = useState('');
+
+  // OCR Detected Dates
+  const [ocrDetectedExpDate, setOcrDetectedExpDate] = useState('');
+  const [ocrDetectedPurchaseDate, setOcrDetectedPurchaseDate] = useState('');
 
   // Camera Mock State
   const [isScanning, setIsScanning] = useState(false);
@@ -132,6 +224,8 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
     setExpDate('');
     setStorageLocation('냉장');
     setMemo('');
+    setOcrDetectedExpDate('');
+    setOcrDetectedPurchaseDate('');
     onClose();
   };
 
@@ -316,7 +410,8 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
     const list = getHouseholdData('ingredients', []);
 
     if (step === 'camera-result') {
-      const selectedList = receiptItems.filter(item => selectedReceiptItems[item.name]);
+      // Filter out non-food items so only food ingredients show up in the confirmation popup
+      const selectedList = receiptItems.filter(item => selectedReceiptItems[item.name] && isIngredientItem(item.name));
       if (selectedList.length === 0) {
         alert('추가할 식재료를 하나 이상 선택해 주세요.');
         return;
@@ -331,13 +426,14 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
           storage = '실온';
         }
         
-        const autoExp = getAutoExpiryDate(item.name, purchaseDate);
+        // Prioritize OCR detected expiration date, fallback to auto expiry calculation
+        const autoExp = ocrDetectedExpDate || getAutoExpiryDate(item.name, purchaseDate);
         
         return {
           id: Date.now() + Math.random() + idx,
           name: item.name,
           category: detectedCat.name,
-          purchaseDate,
+          purchaseDate: ocrDetectedPurchaseDate || purchaseDate,
           expDate: autoExp || '',
           storageLocation: storage,
           memo: '영수증 인식',
@@ -418,6 +514,16 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
               });
               setSelectedReceiptItems(initialSelect);
               
+              // Extract dates from scanned text
+              const dates = extractDatesFromText(text);
+              if (dates.expDate) {
+                setOcrDetectedExpDate(dates.expDate);
+              }
+              if (dates.purchaseDate) {
+                setOcrDetectedPurchaseDate(dates.purchaseDate);
+                setPurchaseDate(dates.purchaseDate);
+              }
+              
               setIsScanning(false);
               setStep('camera-result');
             })
@@ -446,6 +552,12 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
       initialSelect[item.name] = isIngredientItem(item.name);
     });
     setSelectedReceiptItems(initialSelect);
+    
+    // Set a mock expiration date for demo/fallback verification
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 10);
+    setOcrDetectedExpDate(futureDate.toISOString().split('T')[0]);
+    
     setIsScanning(false);
     setStep('camera-result');
   };

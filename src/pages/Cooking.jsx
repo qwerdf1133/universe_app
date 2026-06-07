@@ -5,7 +5,7 @@ import BottomNav from '../components/BottomNav';
 import { getPostposition } from '../utils/korean';
 import { Flame, Check, X, AlertCircle, ArrowLeft, ArrowRight, BookOpen, Utensils, HelpCircle, Search, ShoppingCart, Plus } from 'lucide-react';
 import { fetchRecipes } from '../utils/api';
-import { parseIngredientsList, detectCategoryByFoodName } from '../utils/categories';
+import { parseIngredientsList, detectCategoryByFoodName, isIngredientMatched } from '../utils/categories';
 import { getHouseholdData, setHouseholdData } from '../utils/household';
 
 const RECIPES = [
@@ -301,15 +301,14 @@ const Cooking = () => {
     const today = new Date();
     today.setHours(0,0,0,0);
     
-    const ownedNames = list.map(item => item.name.toLowerCase());
-    const expiringNames = list.filter(item => {
-      if (!item.expDate) return false; // 유통기한 미지정 항목 제외
+    const expiringList = list.filter(item => {
+      if (!item.expDate) return false;
       const exp = new Date(item.expDate);
       if (isNaN(exp.getTime())) return false;
       exp.setHours(0,0,0,0);
       const diffDays = Math.ceil((exp - today) / (1000 * 60 * 60 * 24));
       return diffDays <= 7;
-    }).map(item => item.name.toLowerCase());
+    });
 
     const apiCategory = cat === '전체' ? '' : cat;
     let fetched = await fetchRecipes(1, 30, search, apiCategory);
@@ -339,18 +338,16 @@ const Cooking = () => {
     const matched = fetched.map(recipe => {
       const matchIngredientsSafe = recipe.matchIngredients || [];
       const matchedOwnedItems = list.filter(item => 
-        matchIngredientsSafe.some(m => 
-          item.name.toLowerCase().includes(m.toLowerCase()) || m.toLowerCase().includes(item.name.toLowerCase())
-        )
+        matchIngredientsSafe.some(m => isIngredientMatched(item.name, m))
       );
 
       let matchCount = 0;
       let expiringBonus = 0;
       
       matchIngredientsSafe.forEach(m => {
-        if (ownedNames.some(name => name.includes(m.toLowerCase()) || m.toLowerCase().includes(name))) {
+        if (list.some(item => isIngredientMatched(item.name, m))) {
           matchCount++;
-          if (expiringNames.some(name => name.includes(m.toLowerCase()) || m.toLowerCase().includes(name))) {
+          if (expiringList.some(item => isIngredientMatched(item.name, m))) {
             expiringBonus += 10; 
           }
         }
@@ -405,9 +402,7 @@ const Cooking = () => {
     const latestIngredients = getHouseholdData('ingredients', []);
     const matchIngredientsSafe = pendingRecipe.matchIngredients || [];
     const matchedOwnedItems = latestIngredients.filter(item => 
-      matchIngredientsSafe.some(m => 
-        item.name.toLowerCase().includes(m.toLowerCase()) || m.toLowerCase().includes(item.name.toLowerCase())
-      )
+      matchIngredientsSafe.some(m => isIngredientMatched(item.name, m))
     );
 
     const recipe = {
@@ -1100,8 +1095,7 @@ const Cooking = () => {
                     {(() => {
                       const missingItems = (selectedRecipe.parsedIngredients || []).filter(p => 
                         !selectedRecipe.matchedOwnedItems.some(item => 
-                          item.name.toLowerCase().includes(p.cleanName.toLowerCase()) || 
-                          p.cleanName.toLowerCase().includes(item.name.toLowerCase())
+                          isIngredientMatched(item.name, p.cleanName)
                         )
                       );
 

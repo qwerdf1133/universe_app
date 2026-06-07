@@ -5,7 +5,7 @@ import BottomNav from '../components/BottomNav';
 import { AlertTriangle, Trash2 } from 'lucide-react';
 import { fetchRecipes } from '../utils/api';
 import { getHouseholdData, setHouseholdData } from '../utils/household';
-import { getFoodIcon } from '../utils/categories';
+import { getFoodIcon, isIngredientMatched } from '../utils/categories';
 
 const RECIPES = [
   {
@@ -103,9 +103,6 @@ const Home = () => {
       return diffDays <= 7;
     });
 
-    const expiringNames = expiring.map(item => item.name.toLowerCase());
-    const ownedNames = list.map(item => item.name.toLowerCase());
-
     let apiRecipes = await fetchRecipes(1, 1000);
     
     if (!apiRecipes || apiRecipes.length === 0) {
@@ -117,14 +114,14 @@ const Home = () => {
       
       let expiringMatchCount = 0;
       matchIngredientsSafe.forEach(m => {
-        if (expiringNames.some(name => name.includes(m.toLowerCase()) || m.toLowerCase().includes(name))) {
+        if (expiring.some(item => isIngredientMatched(item.name, m))) {
           expiringMatchCount++;
         }
       });
       
       let ownedMatchCount = 0;
       matchIngredientsSafe.forEach(m => {
-        if (ownedNames.some(name => name.includes(m.toLowerCase()) || m.toLowerCase().includes(name))) {
+        if (list.some(item => isIngredientMatched(item.name, m))) {
           ownedMatchCount++;
         }
       });
