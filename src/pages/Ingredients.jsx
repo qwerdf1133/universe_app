@@ -122,7 +122,7 @@ const Ingredients = () => {
 
   return (
     <div className="page-container">
-      <Header title="내 식재료 관리" />
+      <Header title="우리집 냉장고 관리" />
       <div className="content" style={{ paddingBottom: '80px', paddingTop: '10px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <span style={{ fontSize: '13px', color: 'var(--gray-500)' }}>

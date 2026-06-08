@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Copy, Check, LogOut, UserMinus, ShieldAlert, Award } from 'lucide-react';
-import { updateUserInFirebase, signOutUser, deleteUserAccount } from '../utils/firebase';
+import { updateUserInFirebase, signOutUser, deleteUserAccount, db, auth } from '../utils/firebase';
+import { query, collection, where, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { updatePassword } from 'firebase/auth';
 
 const AVATARS = ['😎', '👩', '👨', '👶', '🦁', '🐯', '🐼', '🐰', '🦊', '🐱'];
 
@@ -13,13 +15,19 @@ const SettingsModal = ({ isOpen, onClose }) => {
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState('profile'); // 'profile', 'members', 'system'
 
+  // Household members state
+  const [householdMembers, setHouseholdMembers] = useState([]);
+
+  // Change password states
+  const [newPassword, setNewPassword] = useState('');
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
+
   // Load current user details
   useEffect(() => {
     if (isOpen) {
       const session = localStorage.getItem('currentUser');
       if (session) {
         const userSession = JSON.parse(session);
-        // Find full user details in user list to get householdCode and avatar
         const usersStr = localStorage.getItem('users');
         const users = usersStr ? JSON.parse(usersStr) : [];
         const fullUser = users.find(u => u.id === userSession.id) || {};
@@ -28,9 +36,52 @@ const SettingsModal = ({ isOpen, onClose }) => {
         setCurrentUser(mergedUser);
         setNickname(mergedUser.nickname || '');
         setSelectedAvatar(mergedUser.avatar || '😎');
+
+        // Initialize household members list from local cache
+        if (mergedUser.householdCode) {
+          setHouseholdMembers(users.filter(u => u.householdCode === mergedUser.householdCode));
+        } else {
+          setHouseholdMembers([]);
+        }
       }
     }
   }, [isOpen]);
+
+  // Dynamically load members from Firestore
+  useEffect(() => {
+    const fetchMembers = async () => {
+      if (isOpen && currentUser && currentUser.householdCode) {
+        try {
+          const q = query(
+            collection(db, "users"),
+            where("householdCode", "==", currentUser.householdCode)
+          );
+          const querySnapshot = await getDocs(q);
+          const list = [];
+          querySnapshot.forEach(docSnap => {
+            list.push(docSnap.data());
+          });
+          setHouseholdMembers(list);
+          
+          // Sync with localStorage 'users' list
+          const usersStr = localStorage.getItem('users');
+          let localUsers = usersStr ? JSON.parse(usersStr) : [];
+          list.forEach(m => {
+            const idx = localUsers.findIndex(u => u.id === m.id);
+            if (idx > -1) {
+              localUsers[idx] = { ...localUsers[idx], ...m };
+            } else {
+              localUsers.push(m);
+            }
+          });
+          localStorage.setItem('users', JSON.stringify(localUsers));
+        } catch (e) {
+          console.error("Error fetching household members from Firestore:", e);
+        }
+      }
+    };
+    fetchMembers();
+  }, [isOpen, currentUser, activeTab]);
 
   if (!isOpen || !currentUser) return null;
 
@@ -131,14 +182,83 @@ const SettingsModal = ({ isOpen, onClose }) => {
     }
   };
 
+  // Handle Kick Member
+  const handleKickMember = async (member) => {
+    if (window.confirm(`정말 ${member.nickname || member.id} 구성원을 강퇴하시겠습니까?`)) {
+      try {
+        // 1. Update in Firestore
+        const memberRef = doc(db, "users", member.id);
+        await updateDoc(memberRef, {
+          householdCode: "",
+          householdType: "미정"
+        });
+
+        // 2. Remove from local list state
+        setHouseholdMembers(prev => prev.filter(m => m.id !== member.id));
+
+        // 3. Update localStorage users list
+        const usersStr = localStorage.getItem('users');
+        if (usersStr) {
+          const users = JSON.parse(usersStr);
+          const updated = users.map(u => u.id === member.id ? { ...u, householdCode: "", householdType: "미정" } : u);
+          localStorage.setItem('users', JSON.stringify(updated));
+        }
+
+        alert(`${member.nickname || member.id} 구성원을 강퇴하였습니다.`);
+      } catch (e) {
+        console.error("Error kicking member:", e);
+        alert(`구성원 강퇴 오류: ${e.message}`);
+      }
+    }
+  };
+
+  // Handle Change Password
+  const handleChangePassword = async () => {
+    if (!newPassword) {
+      alert('비밀번호를 입력해 주세요.');
+      return;
+    }
+    if (newPassword.length < 6) {
+      alert('비밀번호를 최소 6글자 이상 입력해주세요.');
+      return;
+    }
+    if (newPassword !== newPasswordConfirm) {
+      alert('비밀번호가 일치하지 않습니다.');
+      return;
+    }
+
+    try {
+      const currentUserAuth = auth.currentUser;
+      if (currentUserAuth) {
+        await updatePassword(currentUserAuth, newPassword);
+      }
+
+      // Update in Firestore
+      const userDocRef = doc(db, "users", currentUser.id);
+      await updateDoc(userDocRef, {
+        password: newPassword
+      });
+
+      // Update in local users list cache
+      const usersStr = localStorage.getItem('users');
+      if (usersStr) {
+        const users = JSON.parse(usersStr);
+        const updated = users.map(u => u.id === currentUser.id ? { ...u, password: newPassword } : u);
+        localStorage.setItem('users', JSON.stringify(updated));
+      }
+
+      alert('비밀번호가 성공적으로 변경되었습니다!');
+      setNewPassword('');
+      setNewPasswordConfirm('');
+    } catch (e) {
+      console.error("Change password error:", e);
+      alert(`비밀번호 변경 오류: ${e.message}`);
+    }
+  };
+
   // Get current user household type details
   const householdLabel = currentUser.householdType || '미지정';
   const householdCodeVal = currentUser.householdCode || '없음';
-
-  // Get members of same household
-  const usersStr = localStorage.getItem('users');
-  const allUsers = usersStr ? JSON.parse(usersStr) : [];
-  const householdMembers = allUsers.filter(u => u.householdCode === currentUser.householdCode && u.householdCode);
 
   return (
     <div style={{
@@ -373,18 +493,64 @@ const SettingsModal = ({ isOpen, onClose }) => {
               </h4>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {/* Active logged in user */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: '#f8fafc', border: '1px solid var(--gray-200)', borderRadius: '10px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ fontSize: '20px' }}>{selectedAvatar}</span>
-                    <span style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--text-black)' }}>
-                      {nickname} <span style={{ color: 'var(--primary-color)', fontSize: '11px', marginLeft: '4px' }}>(나)</span>
-                    </span>
+                {householdMembers.length === 0 ? (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: '#f8fafc', border: '1px solid var(--gray-200)', borderRadius: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '20px' }}>{selectedAvatar}</span>
+                      <span style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--text-black)' }}>
+                        {nickname} <span style={{ color: 'var(--primary-color)', fontSize: '11px', marginLeft: '4px' }}>(나)</span>
+                      </span>
+                    </div>
+                    <span style={{ fontSize: '11px', color: 'var(--gray-400)' }}>ID: {currentUser.id}</span>
                   </div>
-                  <span style={{ fontSize: '11px', color: 'var(--gray-400)' }}>ID: {currentUser.id}</span>
-                </div>
-
-
+                ) : (
+                  householdMembers.map(member => {
+                    const isMe = member.id === currentUser.id;
+                    const isCreator = currentUser.householdType === '가구 생성';
+                    return (
+                      <div 
+                        key={member.id} 
+                        style={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center', 
+                          padding: '12px', 
+                          background: '#f8fafc', 
+                          border: '1px solid var(--gray-200)', 
+                          borderRadius: '10px' 
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span style={{ fontSize: '20px' }}>{member.avatar || '😎'}</span>
+                          <span style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--text-black)' }}>
+                            {member.nickname} {isMe && <span style={{ color: 'var(--primary-color)', fontSize: '11px', marginLeft: '4px' }}>(나)</span>}
+                            {member.householdType === '가구 생성' && <span style={{ color: '#e53e3e', fontSize: '10px', marginLeft: '4px', border: '1px solid #feb2b2', padding: '1px 4px', borderRadius: '4px', background: '#fff5f5' }}>방장</span>}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '11px', color: 'var(--gray-400)' }}>ID: {member.id}</span>
+                          {!isMe && isCreator && (
+                            <button
+                              onClick={() => handleKickMember(member)}
+                              style={{
+                                padding: '4px 8px',
+                                backgroundColor: '#ef4444',
+                                border: 'none',
+                                borderRadius: '4px',
+                                color: '#ffffff',
+                                cursor: 'pointer',
+                                fontSize: '11px',
+                                fontWeight: 'bold'
+                              }}
+                            >
+                              강퇴
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>
@@ -410,6 +576,56 @@ const SettingsModal = ({ isOpen, onClose }) => {
               <span style={{ fontSize: '12px', background: '#e2e8f0', color: 'var(--gray-600)', padding: '4px 10px', borderRadius: '8px', fontWeight: 'bold' }}>
                 v1.2.0 (최신버전)
               </span>
+            </div>
+
+            {/* 비밀번호 변경 */}
+            <div style={{
+              border: '1px solid var(--gray-200)',
+              background: '#f8fafc',
+              padding: '16px',
+              borderRadius: '16px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px'
+            }}>
+              <h4 style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--text-black)', margin: 0 }}>
+                🔒 비밀번호 변경
+              </h4>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <input
+                  type="password"
+                  placeholder="새 비밀번호 (최소 6글자 이상)"
+                  className="input-field"
+                  style={{ margin: 0 }}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <input
+                  type="password"
+                  placeholder="새 비밀번호 확인"
+                  className="input-field"
+                  style={{ margin: 0 }}
+                  value={newPasswordConfirm}
+                  onChange={(e) => setNewPasswordConfirm(e.target.value)}
+                />
+                {newPasswordConfirm && (
+                  <span style={{ fontSize: '12px', color: newPassword === newPasswordConfirm ? '#379271' : '#e53e3e', fontWeight: '500', paddingLeft: '4px' }}>
+                    {newPassword === newPasswordConfirm ? '비밀번호가 일치합니다.' : '비밀번호가 일치하지 않습니다.'}
+                  </span>
+                )}
+              </div>
+
+              <button
+                className="btn-primary"
+                onClick={handleChangePassword}
+                style={{ margin: 0, padding: '10px', fontSize: '13px' }}
+              >
+                비밀번호 변경하기
+              </button>
             </div>
 
             {/* Logout Action */}

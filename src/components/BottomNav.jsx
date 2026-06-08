@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, Apple, Utensils, ShoppingCart, BookText } from 'lucide-react';
+import { Home, Refrigerator, Utensils, ShoppingCart, BookText } from 'lucide-react';
 import './BottomNav.css';
 
 const BottomNav = () => {
@@ -9,7 +9,7 @@ const BottomNav = () => {
 
   const navItems = [
     { path: '/home', label: '홈', icon: Home },
-    { path: '/ingredients', label: '식재료', icon: Apple },
+    { path: '/ingredients', label: '냉장고', icon: Refrigerator },
     { path: '/cooking', label: '요리', icon: Utensils },
     { path: '/shopping', label: '장보기', icon: ShoppingCart },
   ];

@@ -1,12 +1,66 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { signInUserInFirebase, getHouseholdDataFromFirebase } from '../utils/firebase';
 
 const Login = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [id, setId] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+
+  useEffect(() => {
+    if (location.state && location.state.autoLogin) {
+      const { id: autoId, password: autoPassword } = location.state;
+      if (autoId && autoPassword) {
+        setId(autoId);
+        setPassword(autoPassword);
+
+        const performAutoLogin = async () => {
+          try {
+            setErrorMsg('');
+            const userData = await signInUserInFirebase(autoId, autoPassword);
+
+            localStorage.setItem('currentUser', JSON.stringify({ id: userData.id, nickname: userData.nickname }));
+
+            const usersStr = localStorage.getItem('users');
+            const users = usersStr ? JSON.parse(usersStr) : [];
+            if (!users.some(u => u.id === userData.id)) {
+              users.push(userData);
+              localStorage.setItem('users', JSON.stringify(users));
+            } else {
+              const updated = users.map(u => u.id === userData.id ? userData : u);
+              localStorage.setItem('users', JSON.stringify(updated));
+            }
+
+            const code = userData.householdCode;
+            const syncKey = code || `user_${userData.id}`;
+            const householdData = await getHouseholdDataFromFirebase(syncKey);
+
+            if (householdData) {
+              const prefix = code ? `_${code}` : '';
+              if (householdData.ingredients) {
+                localStorage.setItem(`ingredients${prefix}`, JSON.stringify(householdData.ingredients));
+              }
+              if (householdData['shopping-list']) {
+                localStorage.setItem(`shopping-list${prefix}`, JSON.stringify(householdData['shopping-list']));
+              }
+              if (householdData['member-requests']) {
+                localStorage.setItem(`member-requests${prefix}`, JSON.stringify(householdData['member-requests']));
+              }
+            }
+
+            navigate('/home');
+          } catch (e) {
+            console.error("Auto login failed:", e);
+            setErrorMsg('자동 로그인에 실패했습니다. 다시 시도해 주세요.');
+          }
+        };
+
+        performAutoLogin();
+      }
+    }
+  }, [location.state, navigate]);
 
   const handleLogin = async () => {
     if (!id || !password) {

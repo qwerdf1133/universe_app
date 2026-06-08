@@ -38,6 +38,11 @@ const SignUp = () => {
       setIsIdChecked(false);
       return;
     }
+    if (id.includes(' ')) {
+      setIdCheckMsg('아이디 또는 닉네임에 공백이 있을 수 없습니다.');
+      setIsIdChecked(false);
+      return;
+    }
     try {
       const isDup = await checkDuplicateIdInFirebase(id) || id === 'admin';
       if (isDup) {
@@ -60,6 +65,11 @@ const SignUp = () => {
       setIsNicknameChecked(false);
       return;
     }
+    if (nickname.includes(' ')) {
+      setNicknameCheckMsg('아이디 또는 닉네임에 공백이 있을 수 없습니다.');
+      setIsNicknameChecked(false);
+      return;
+    }
     try {
       const isDup = await checkDuplicateNicknameInFirebase(nickname) || nickname === '관리자';
       if (isDup) {
@@ -77,12 +87,19 @@ const SignUp = () => {
   };
 
   const handleNext = async () => {
+    if (id.includes(' ')) {
+      return alert('아이디 또는 닉네임에 공백이 있을 수 없습니다.');
+    }
     if (!isIdChecked) return alert('아이디 중복확인을 해주세요.');
     if (!email) return alert('이메일을 입력해주세요.');
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) return alert('올바른 이메일 형식을 입력해주세요.');
     if (!password) return alert('비밀번호를 입력해주세요.');
+    if (password.length < 6) return alert('비밀번호를 최소 6글자 이상 입력해주세요.');
     if (password !== passwordConfirm) return alert('비밀번호가 일치하지 않습니다.');
+    if (nickname.includes(' ')) {
+      return alert('아이디 또는 닉네임에 공백이 있을 수 없습니다.');
+    }
     if (!isNicknameChecked) return alert('닉네임 중복확인을 해주세요.');
 
     try {
@@ -174,7 +191,7 @@ const SignUp = () => {
       localStorage.setItem('users', JSON.stringify(updated));
 
       alert(`코드 [${enteredCode.toUpperCase()}] 가구에 참가하였습니다!`);
-      navigate('/setup');
+      navigate('/home');
     } catch (e) {
       console.error(e);
       alert(`가구 참가 오류: ${e.message}`);
@@ -185,6 +202,9 @@ const SignUp = () => {
     navigate('/setup');
   };
 
+  const isEmailValid = !email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const hasIdSpace = id.includes(' ');
+  const hasNicknameSpace = nickname.includes(' ');
 
   return (
     <div className="page-container" style={{ padding: '20px', position: 'relative' }}>
@@ -223,27 +243,38 @@ const SignUp = () => {
               중복확인
             </button>
           </div>
-          {idCheckMsg && (
+          {hasIdSpace ? (
+            <span style={{ fontSize: '12px', color: '#e53e3e', fontWeight: '500', paddingLeft: '4px' }}>
+              아이디 또는 닉네임에 공백이 있을 수 없습니다.
+            </span>
+          ) : idCheckMsg ? (
             <span style={{ fontSize: '12px', color: isIdChecked ? '#379271' : '#e53e3e', fontWeight: '500', paddingLeft: '4px' }}>
               {idCheckMsg}
+            </span>
+          ) : null}
+        </div>
+
+        {/* Email input */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <input
+            type="email"
+            placeholder="이메일"
+            className="input-field"
+            style={{ marginBottom: 0 }}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          {email && !isEmailValid && (
+            <span style={{ fontSize: '12px', color: '#e53e3e', fontWeight: '500', paddingLeft: '4px' }}>
+              올바르지 않은 이메일 형식입니다.
             </span>
           )}
         </div>
 
-        {/* Email input */}
-        <input
-          type="email"
-          placeholder="이메일"
-          className="input-field"
-          style={{ marginBottom: 0 }}
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-
         {/* Password input */}
         <input
           type="password"
-          placeholder="비밀번호 (최소 6자 이상)"
+          placeholder="비밀번호 (최소 6글자 이상)"
           className="input-field"
           style={{ marginBottom: 0 }}
           value={password}
@@ -290,11 +321,15 @@ const SignUp = () => {
               중복확인
             </button>
           </div>
-          {nicknameCheckMsg && (
+          {hasNicknameSpace ? (
+            <span style={{ fontSize: '12px', color: '#e53e3e', fontWeight: '500', paddingLeft: '4px' }}>
+              아이디 또는 닉네임에 공백이 있을 수 없습니다.
+            </span>
+          ) : nicknameCheckMsg ? (
             <span style={{ fontSize: '12px', color: isNicknameChecked ? '#379271' : '#e53e3e', fontWeight: '500', paddingLeft: '4px' }}>
               {nicknameCheckMsg}
             </span>
-          )}
+          ) : null}
         </div>
 
         <div style={{ marginTop: 'auto', paddingTop: '20px' }}>

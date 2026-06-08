@@ -372,6 +372,56 @@
  - 보유한 식재료인데 부족한 식재료로 뜨는 오류 수정 ( 올리브유를 가지고 있지만, 부족한 식재료에 '올리브유 30g'이 뜨는 오류 수정 )
 
  
+======== 20번 째 수정 사항 =========
+
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyCvP6dk6PSBQx168S0JK-WnyqZD1Ith9Cs",
+  authDomain: "project-login-service-f65f1.firebaseapp.com",
+  projectId: "project-login-service-f65f1",
+  storageBucket: "project-login-service-f65f1.firebasestorage.app",
+  messagingSenderId: "428007184908",
+  appId: "1:428007184908:web:573718d3dfc594cd87ac29",
+  measurementId: "G-H6B1VCT2NW"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
 
 
+위 코드를 이용한 firebase에 회원 아이디와 비밀번호, 유저의 냉장고 상태 저장
+회원가입에 이메일이 필요하다면, 이메일을 이용해 인증은 하되, 로그인은 아이디를 사용할 수 있도록 설정
+
+======== 21번 째 수정 사항 =========
+
+# 수정 사항
+
+## 회원가입
+ - 비밀번호를 최소 6글자 이상 입력해야되도록 설정 (placeholder에 6글자 이상이라고 표시)
+ - 이메일이 올바르지 않으면 빨간 글씨로 아래에 표시 (예: 올바르지 않은 이메일 형식입니다.)
+ - 아이디나 닉네임에 공백이 있으면 빨간 글씨로 아래에 표시 (예: 아이디 또는 닉네임에 공백이 있을 수 없습니다.)
+ - 가구 코드를 이용해 참가한 사람은 초기 소스 선택창이 뜨지 않도록
+
+## 비밀번호 찾기
+ - 비밀번호 찾기에서 닉네임 대신에 이메일을 입력하는 방식으로 변경
+ - 데이터가 일치하면 임시로 비밀번호를 변경 후 사용자에게 알림 (팝업창으로 확인 -> 확인을 누르면 로그인 화면으로 이동 -> 자동으로 로그인 되도록 설정)
+
+## 설정 화면
+ - 구성원 설정에서 참여중인 구성원 목록 전체가 보이도록 설정 (나 자신도 포함)
+ - 구성원 그룹을 최초로 만든 사람은 다른 구성원을 강퇴할 수 있도록 기능 추가 (빨간색 네모 상자의 강퇴 표시 -> 누르면 강퇴)
+ - 기타/계정 탭에서 비밀번호를 변경 할 수 있도록 설정 (회원가입의 비밀번호 설정과 동일하게 수정)
+
+
+## 식재료 탭
+ - 식재료 탭 이름과 아이콘을 냉장고로 변경
+ - 상단에 뜨는 내 식재료 관리를 우리집 냉장고 관리로 변경
+ 
 ========= 생각난거===============

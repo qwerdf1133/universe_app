@@ -7,7 +7,8 @@ import {
   sendEmailVerification, 
   sendPasswordResetEmail,
   signOut,
-  deleteUser
+  deleteUser,
+  updatePassword
 } from "firebase/auth";
 import { 
   getFirestore, 
@@ -86,6 +87,7 @@ export const signUpUserInFirebase = async (id, email, password, nickname) => {
     email,
     nickname,
     uid: user.uid,
+    password, // Store password in Firestore
     householdCode: "",
     householdType: "미정",
     createdAt: new Date().toISOString()
@@ -106,8 +108,40 @@ export const signInUserInFirebase = async (id, password) => {
   }
   const userData = userDoc.data();
 
+  // If password or tempPassword matches in Firestore
+  if ((userData.password && userData.password === password) || (userData.tempPassword && userData.tempPassword === password)) {
+    try {
+      const authPassword = userData.password || password;
+      await signInWithEmailAndPassword(auth, userData.email, authPassword);
+      
+      // If logging in via tempPassword, update Firebase Auth password and sync Firestore
+      if (userData.tempPassword && userData.tempPassword === password) {
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+          await updatePassword(currentUser, password);
+          await updateDoc(userDocRef, {
+            password: password,
+            tempPassword: null
+          });
+          userData.password = password;
+          delete userData.tempPassword;
+        }
+      }
+    } catch (authErr) {
+      console.warn("Auth sign-in failed but matched Firestore password cache:", authErr);
+      // Fallback: even if Firebase Auth fails, return userData to log in locally
+    }
+    return userData;
+  }
+
   // 2. 해당 이메일과 비밀번호로 로그인
   await signInWithEmailAndPassword(auth, userData.email, password);
+
+  // Cache password on successful login if not already present
+  if (!userData.password) {
+    await updateDoc(userDocRef, { password });
+    userData.password = password;
+  }
 
   return userData;
 };
