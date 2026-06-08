@@ -141,20 +141,20 @@ const Ingredients = () => {
 
         {/* Filters */}
         <div style={{ display: 'flex', overflowX: 'auto', gap: '8px', paddingBottom: '12px', marginBottom: '12px', msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
-          <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap', width: 'auto', background: activeFilter === 'all' ? 'var(--primary-color)' : '#fff', color: activeFilter === 'all' ? '#fff' : 'var(--text-black)', border: activeFilter === 'all' ? 'none' : '1px solid var(--gray-200)' }} onClick={() => setActiveFilter('all')}>전체</button>
-          <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap', width: 'auto', background: activeFilter === 'expiring' ? 'var(--primary-color)' : '#fff', color: activeFilter === 'expiring' ? '#fff' : 'var(--text-black)', border: activeFilter === 'expiring' ? 'none' : '1px solid var(--gray-200)' }} onClick={() => setActiveFilter('expiring')}>유통기한 임박</button>
-          <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap', width: 'auto', background: activeFilter === '냉장' ? 'var(--primary-color)' : '#fff', color: activeFilter === '냉장' ? '#fff' : 'var(--text-black)', border: activeFilter === '냉장' ? 'none' : '1px solid var(--gray-200)' }} onClick={() => setActiveFilter('냉장')}>냉장</button>
-          <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap', width: 'auto', background: activeFilter === '냉동' ? 'var(--primary-color)' : '#fff', color: activeFilter === '냉동' ? '#fff' : 'var(--text-black)', border: activeFilter === '냉동' ? 'none' : '1px solid var(--gray-200)' }} onClick={() => setActiveFilter('냉동')}>냉동</button>
-          <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap', width: 'auto', background: activeFilter === '실온' ? 'var(--primary-color)' : '#fff', color: activeFilter === '실온' ? '#fff' : 'var(--text-black)', border: activeFilter === '실온' ? 'none' : '1px solid var(--gray-200)' }} onClick={() => setActiveFilter('실온')}>실온</button>
-          <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap', width: 'auto', background: activeFilter === '기타' ? 'var(--primary-color)' : '#fff', color: activeFilter === '기타' ? '#fff' : 'var(--text-black)', border: activeFilter === '기타' ? 'none' : '1px solid var(--gray-200)' }} onClick={() => setActiveFilter('기타')}>기타</button>
-          <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap', width: 'auto', background: activeFilter === 'favorite' ? 'var(--primary-color)' : '#fff', color: activeFilter === 'favorite' ? '#fff' : 'var(--text-black)', border: activeFilter === 'favorite' ? 'none' : '1px solid var(--gray-200)' }} onClick={() => setActiveFilter('favorite')}>찜 목록</button>
+          <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap', width: 'auto', background: activeFilter === 'all' ? 'var(--primary-color)' : 'var(--input-bg)', color: activeFilter === 'all' ? '#fff' : 'var(--text-black)', border: activeFilter === 'all' ? 'none' : '1px solid var(--border-color)' }} onClick={() => setActiveFilter('all')}>전체</button>
+          <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap', width: 'auto', background: activeFilter === 'expiring' ? 'var(--primary-color)' : 'var(--input-bg)', color: activeFilter === 'expiring' ? '#fff' : 'var(--text-black)', border: activeFilter === 'expiring' ? 'none' : '1px solid var(--border-color)' }} onClick={() => setActiveFilter('expiring')}>유통기한 임박</button>
+          <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap', width: 'auto', background: activeFilter === '냉장' ? 'var(--primary-color)' : 'var(--input-bg)', color: activeFilter === '냉장' ? '#fff' : 'var(--text-black)', border: activeFilter === '냉장' ? 'none' : '1px solid var(--border-color)' }} onClick={() => setActiveFilter('냉장')}>냉장</button>
+          <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap', width: 'auto', background: activeFilter === '냉동' ? 'var(--primary-color)' : 'var(--input-bg)', color: activeFilter === '냉동' ? '#fff' : 'var(--text-black)', border: activeFilter === '냉동' ? 'none' : '1px solid var(--border-color)' }} onClick={() => setActiveFilter('냉동')}>냉동</button>
+          <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap', width: 'auto', background: activeFilter === '실온' ? 'var(--primary-color)' : 'var(--input-bg)', color: activeFilter === '실온' ? '#fff' : 'var(--text-black)', border: activeFilter === '실온' ? 'none' : '1px solid var(--border-color)' }} onClick={() => setActiveFilter('실온')}>실온</button>
+          <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap', width: 'auto', background: activeFilter === '기타' ? 'var(--primary-color)' : 'var(--input-bg)', color: activeFilter === '기타' ? '#fff' : 'var(--text-black)', border: activeFilter === '기타' ? 'none' : '1px solid var(--border-color)' }} onClick={() => setActiveFilter('기타')}>기타</button>
+          <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap', width: 'auto', background: activeFilter === 'favorite' ? 'var(--primary-color)' : 'var(--input-bg)', color: activeFilter === 'favorite' ? '#fff' : 'var(--text-black)', border: activeFilter === 'favorite' ? 'none' : '1px solid var(--border-color)' }} onClick={() => setActiveFilter('favorite')}>찜 목록</button>
         </div>
         
         {filteredData.length === 0 ? (
           <div style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            height: '200px', border: '2px dashed var(--gray-300)', borderRadius: '12px',
-            backgroundColor: '#fafafa', marginTop: '40px'
+            height: '200px', border: '2px dashed var(--border-color)', borderRadius: '12px',
+            backgroundColor: 'var(--gray-50)', marginTop: '40px'
           }}>
             <div style={{ color: 'var(--gray-400)', marginBottom: '16px' }}>
               <Plus size={32} />
@@ -180,8 +180,8 @@ const Ingredients = () => {
                   onClick={() => handleCardClick(item)}
                   style={{ 
                     padding: '16px', 
-                    background: isExpired ? '#fff5f5' : '#fff', 
-                    border: isExpired ? '1px solid #feb2b2' : '1px solid var(--gray-200)', 
+                    background: isExpired ? 'var(--danger-bg)' : 'var(--card-bg)', 
+                    border: isExpired ? '1px solid var(--danger-border)' : '1px solid var(--border-color)', 
                     borderRadius: '12px', 
                     display: 'flex', 
                     justifyContent: 'space-between', 
@@ -193,7 +193,7 @@ const Ingredients = () => {
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     {/* Dynamic Food Emoji Icon */}
-                    <div style={{ fontSize: '28px', background: '#f3f4f6', width: '48px', height: '48px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ fontSize: '28px', background: 'var(--tab-bg)', width: '48px', height: '48px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       {getFoodIcon(item.name, item.category)}
                     </div>
                     
@@ -202,7 +202,7 @@ const Ingredients = () => {
                         <span style={{ fontWeight: 'bold', color: isExpired ? '#c53030' : 'var(--text-black)' }}>
                           {item.name} {item.quantity && <span style={{ fontSize: '12px', color: 'var(--gray-500)', fontWeight: 'normal' }}>({item.quantity})</span>}
                         </span>
-                        <span style={{ fontSize: '10px', background: isExpired ? '#fed7d7' : '#e0f2ec', color: isExpired ? '#9b2c2c' : 'var(--primary-color)', padding: '2px 6px', borderRadius: '4px' }}>
+                        <span style={{ fontSize: '10px', background: isExpired ? 'var(--danger-bg)' : 'rgba(55,146,113,0.15)', color: isExpired ? '#9b2c2c' : 'var(--primary-color)', padding: '2px 6px', borderRadius: '4px' }}>
                           {item.storageLocation}
                         </span>
                       </div>

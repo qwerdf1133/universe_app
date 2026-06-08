@@ -16,6 +16,11 @@ import { getCurrentUserFull } from './utils/household';
 
 function App() {
   useEffect(() => {
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+  }, []);
+
+  useEffect(() => {
     let unsubscribe = null;
 
     const subscribeToHousehold = () => {

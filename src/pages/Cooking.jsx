@@ -597,7 +597,7 @@ const Cooking = () => {
                 padding: '6px 14px',
                 borderRadius: '20px',
                 border: 'none',
-                background: selectedCategory === cat ? 'var(--primary-color)' : '#f3f4f6',
+                background: selectedCategory === cat ? 'var(--primary-color)' : 'var(--tab-bg)',
                 color: selectedCategory === cat ? '#fff' : 'var(--gray-600)',
                 fontSize: '13px',
                 fontWeight: 'bold',
@@ -614,7 +614,7 @@ const Cooking = () => {
         {isFetching ? (
           <div style={{ textAlign: 'center', color: 'var(--gray-500)', padding: '20px' }}>레시피를 불러오는 중입니다...</div>
         ) : displayedRecipes.length === 0 ? (
-          <div style={{ textAlign: 'center', color: 'var(--gray-500)', padding: '40px 20px', fontSize: '14px', background: '#f9fafb', borderRadius: '12px' }}>
+          <div style={{ textAlign: 'center', color: 'var(--gray-500)', padding: '40px 20px', fontSize: '14px', background: 'var(--gray-50)', borderRadius: '12px' }}>
             요리를 찾을 수 없습니다.
           </div>
         ) : (
@@ -632,8 +632,8 @@ const Cooking = () => {
                 key={recipe.id}
                 onClick={() => handleCardClick(recipe)}
                 style={{
-                  background: '#FFFFFF',
-                  border: '1px solid var(--gray-200)',
+                  background: 'var(--card-bg)',
+                  border: '1px solid var(--border-color)',
                   borderRadius: '16px',
                   padding: '12px 14px',
                   cursor: 'pointer',
@@ -707,7 +707,7 @@ const Cooking = () => {
                     <span style={{
                       fontSize: '9px',
                       fontWeight: 'bold',
-                      background: hasMatched ? '#e0f2ec' : '#f3f4f6',
+                      background: hasMatched ? 'rgba(55,146,113,0.15)' : 'var(--tab-bg)',
                       color: hasMatched ? 'var(--primary-color)' : 'var(--gray-500)',
                       padding: '2px 6px',
                       borderRadius: '6px'
@@ -723,7 +723,7 @@ const Cooking = () => {
           {displayedRecipes.length > visibleCount && (
             <button 
               className="btn-primary" 
-              style={{ background: '#f3f4f6', color: 'var(--gray-600)', border: 'none', marginTop: '8px' }}
+              style={{ background: 'var(--tab-bg)', color: 'var(--gray-600)', border: 'none', marginTop: '8px' }}
               onClick={() => setVisibleCount(prev => Math.min(prev + 5, 30))}
             >
               더보기 ({visibleCount}/{Math.min(displayedRecipes.length, 30)})
@@ -737,11 +737,12 @@ const Cooking = () => {
       {isSearchModalOpen && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: '#fff', zIndex: 9999,
+          backgroundColor: 'var(--modal-bg)', zIndex: 9999,
           display: 'flex', flexDirection: 'column',
-          animation: 'slideUp 0.2s ease-out'
+          animation: 'slideUp 0.2s ease-out',
+          color: 'var(--text-black)'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--gray-200)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--border-color)' }}>
             <button onClick={() => setIsSearchModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', marginRight: '16px' }}>
               <ArrowLeft size={24} color="var(--text-black)" />
             </button>
@@ -791,7 +792,7 @@ const Cooking = () => {
           onClick={() => setPendingRecipe(null)}
           >
             <div style={{
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--modal-bg)',
               width: '85%',
               maxWidth: '340px',
               borderRadius: '20px',
@@ -799,7 +800,8 @@ const Cooking = () => {
               boxSizing: 'border-box',
               textAlign: 'center',
               boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
-              animation: 'scaleUp 0.2s ease-out'
+              animation: 'scaleUp 0.2s ease-out',
+              color: 'var(--text-black)'
             }}
             onClick={(e) => e.stopPropagation()}
             >
@@ -818,7 +820,7 @@ const Cooking = () => {
                 <button 
                   onClick={() => setPendingRecipe(null)}
                   style={{
-                    flex: 1, padding: '12px', background: '#f1f5f9', border: 'none', borderRadius: '10px',
+                    flex: 1, padding: '12px', background: 'var(--tab-bg)', border: 'none', borderRadius: '10px',
                     fontSize: '13px', fontWeight: 'bold', color: 'var(--gray-500)', cursor: 'pointer'
                   }}
                 >
@@ -857,7 +859,7 @@ const Cooking = () => {
           animation: 'fadeIn 0.2s ease-out'
         }}>
           <div style={{
-            backgroundColor: '#FFFFFF',
+            backgroundColor: 'var(--modal-bg)',
             width: '100%',
             height: '100%',
             maxHeight: '100%',
@@ -868,11 +870,12 @@ const Cooking = () => {
             flexDirection: 'column',
             gap: '16px',
             overflowY: 'auto',
-            animation: 'slideUp 0.3s ease-out'
+            animation: 'slideUp 0.3s ease-out',
+            color: 'var(--text-black)'
           }}>
             
             {/* Modal Top Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--gray-200)', paddingBottom: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '24px' }}>{selectedRecipe.emoji}</span>
                 <div>
@@ -880,8 +883,8 @@ const Cooking = () => {
                     {selectedRecipe.name}
                   </h3>
                   <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
-                    {selectedRecipe.category && <span style={{ fontSize: '10px', background: '#e0f2ec', color: 'var(--primary-color)', padding: '2px 6px', borderRadius: '4px' }}>{selectedRecipe.category}</span>}
-                    {selectedRecipe.weight && <span style={{ fontSize: '10px', background: '#f3f4f6', color: 'var(--gray-600)', padding: '2px 6px', borderRadius: '4px' }}>{selectedRecipe.weight}</span>}
+                    {selectedRecipe.category && <span style={{ fontSize: '10px', background: 'rgba(55,146,113,0.15)', color: 'var(--primary-color)', padding: '2px 6px', borderRadius: '4px' }}>{selectedRecipe.category}</span>}
+                    {selectedRecipe.weight && <span style={{ fontSize: '10px', background: 'var(--tab-bg)', color: 'var(--gray-600)', padding: '2px 6px', borderRadius: '4px' }}>{selectedRecipe.weight}</span>}
                     {selectedRecipe.hashTag && <span style={{ fontSize: '10px', color: '#3b82f6' }}>{selectedRecipe.hashTag.split(',').map(tag => `#${tag.trim()} `)}</span>}
                   </div>
                 </div>
@@ -908,13 +911,13 @@ const Cooking = () => {
                 </p>
 
                 {cookingResult.used.length > 0 && (
-                  <div style={{ background: '#fff5f5', border: '1px solid #feb2b2', padding: '14px 16px', borderRadius: '14px', textAlign: 'left' }}>
+                  <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', padding: '14px 16px', borderRadius: '14px', textAlign: 'left' }}>
                     <h4 style={{ fontSize: '13px', fontWeight: 'bold', color: '#e53e3e', margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
                       🗑️ 삭제된 식재료 ({cookingResult.used.length}개)
                     </h4>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                       {cookingResult.used.map((name, idx) => (
-                        <span key={idx} style={{ fontSize: '11px', background: '#ffffff', color: '#c53030', border: '1px solid #feb2b2', padding: '3px 8px', borderRadius: '6px', fontWeight: 'bold' }}>
+                        <span key={idx} style={{ fontSize: '11px', background: 'var(--card-bg)', color: 'var(--danger-text)', border: '1px solid var(--danger-border)', padding: '3px 8px', borderRadius: '6px', fontWeight: 'bold' }}>
                           ❌ {name}
                         </span>
                       ))}
@@ -923,13 +926,13 @@ const Cooking = () => {
                 )}
 
                 {cookingResult.leftovers.length > 0 && (
-                  <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '14px 16px', borderRadius: '14px', textAlign: 'left' }}>
+                  <div style={{ background: 'var(--tab-bg)', border: '1px solid var(--border-color)', padding: '14px 16px', borderRadius: '14px', textAlign: 'left' }}>
                     <h4 style={{ fontSize: '13px', fontWeight: 'bold', color: '#166534', margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
                       ✅ 남은 식재료 ({cookingResult.leftovers.length}개)
                     </h4>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                       {cookingResult.leftovers.map((name, idx) => (
-                        <span key={idx} style={{ fontSize: '11px', background: '#ffffff', color: '#166534', border: '1px solid #86efac', padding: '3px 8px', borderRadius: '6px', fontWeight: 'bold' }}>
+                        <span key={idx} style={{ fontSize: '11px', background: 'var(--card-bg)', color: '#166534', border: '1px solid var(--primary-color)', padding: '3px 8px', borderRadius: '6px', fontWeight: 'bold' }}>
                           🧊 {name}
                         </span>
                       ))}
@@ -1100,9 +1103,9 @@ const Cooking = () => {
                           매칭되는 냉장고 식재료가 없습니다.
                         </div>
                       ) : (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '12px', borderRadius: '12px' }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', background: 'var(--tab-bg)', border: '1px solid var(--border-color)', padding: '12px', borderRadius: '12px' }}>
                           {selectedRecipe.matchedOwnedItems.map(item => (
-                            <span key={item.id} style={{ fontSize: '11px', background: '#ffffff', color: '#166534', border: '1px solid #86efac', padding: '3px 8px', borderRadius: '6px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                            <span key={item.id} style={{ fontSize: '11px', background: 'var(--card-bg)', color: 'var(--primary-color)', border: '1px solid var(--primary-color)', padding: '3px 8px', borderRadius: '6px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '3px' }}>
                               ✅ {item.name}
                             </span>
                           ))}
@@ -1123,10 +1126,10 @@ const Cooking = () => {
                         const selectedCount = Object.keys(selectedForPurchase).filter(k => selectedForPurchase[k]).length;
                         return (
                           <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', color: '#e53e3e', marginBottom: '4px' }}>
-                              부족한 식재료 (클릭 시 선택 / 주황색 네모)
+                            <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', color: 'var(--danger-text)', marginBottom: '4px' }}>
+                              부족한 식재료 (클릭 시 선택)
                             </label>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', background: '#fff5f5', border: '1px solid #feb2b2', padding: '12px', borderRadius: '12px' }}>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', padding: '12px', borderRadius: '12px' }}>
                               {missingItems.map((p, idx) => {
                                 const isSelected = !!selectedForPurchase[p.fullName];
                                 return (
@@ -1137,8 +1140,8 @@ const Cooking = () => {
                                       display: 'flex', 
                                       alignItems: 'center', 
                                       gap: '6px', 
-                                      background: isSelected ? '#fffaf0' : '#ffffff', 
-                                      border: isSelected ? '1.8px solid #f97316' : '1px solid #fc8181', 
+                                      background: isSelected ? 'var(--tab-bg)' : 'var(--card-bg)', 
+                                      border: isSelected ? '1.8px solid #f97316' : '1px solid var(--danger-border)', 
                                       padding: '5px 10px', 
                                       borderRadius: '8px',
                                       cursor: 'pointer',
@@ -1149,7 +1152,7 @@ const Cooking = () => {
                                   >
                                     <span style={{ 
                                       fontSize: '11px', 
-                                      color: isSelected ? '#ea580c' : '#c53030', 
+                                      color: isSelected ? '#ea580c' : 'var(--danger-text)', 
                                       fontWeight: 'bold' 
                                     }}>
                                       {p.fullName}
@@ -1165,7 +1168,7 @@ const Cooking = () => {
                               className="btn-primary"
                               style={{
                                 width: '100%',
-                                background: selectedCount > 0 ? 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)' : '#cbd5e1',
+                                background: selectedCount > 0 ? 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)' : 'var(--gray-300)',
                                 color: '#ffffff',
                                 border: 'none',
                                 borderRadius: '10px',
@@ -1275,8 +1278,8 @@ const Cooking = () => {
                             </label>
                             
                             <div style={{ 
-                              background: '#f9fafb', 
-                              border: '1px solid var(--gray-200)',
+                              background: 'var(--card-bg)', 
+                              border: '1px solid var(--border-color)',
                               padding: '16px', 
                               borderRadius: '16px', 
                               fontSize: '14.5px', 
@@ -1297,7 +1300,7 @@ const Cooking = () => {
                               style={{
                                 flex: 1,
                                 padding: '12px 14px',
-                                background: '#f1f5f9',
+                                background: 'var(--tab-bg)',
                                 color: 'var(--gray-600)',
                                 border: 'none',
                                 borderRadius: '12px',

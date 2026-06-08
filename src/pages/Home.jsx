@@ -213,7 +213,7 @@ const Home = () => {
         </h2>
 
         {expiringItems.length === 0 ? (
-          <div style={{ padding: '24px 20px', background: '#f9fafb', border: '1px solid var(--gray-200)', borderRadius: '12px', color: 'var(--gray-500)', textAlign: 'center', fontSize: '13px', marginBottom: '32px' }}>
+          <div style={{ padding: '24px 20px', background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '12px', color: 'var(--gray-500)', textAlign: 'center', fontSize: '13px', marginBottom: '32px' }}>
             유통기한 임박 식재료가 없습니다.
           </div>
         ) : (
@@ -227,8 +227,8 @@ const Home = () => {
                   key={item.id} 
                   style={{ 
                     padding: '12px 14px', 
-                    background: isExpired ? '#fff5f5' : '#fff', 
-                    border: isExpired ? '1px solid #feb2b2' : '1px solid var(--gray-200)', 
+                    background: isExpired ? 'var(--danger-bg)' : 'var(--card-bg)', 
+                    border: isExpired ? '1px solid var(--danger-border)' : '1px solid var(--border-color)', 
                     borderRadius: '12px', 
                     display: 'flex', 
                     justifyContent: 'space-between', 
@@ -238,7 +238,7 @@ const Home = () => {
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     {/* Food Emoji Icon */}
-                    <div style={{ fontSize: '20px', background: '#f3f4f6', width: '36px', height: '36px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ fontSize: '20px', background: 'var(--tab-bg)', width: '36px', height: '36px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       {getFoodIcon(item.name, item.category)}
                     </div>
                     
@@ -276,8 +276,8 @@ const Home = () => {
                   gap: '8px',
                   width: '100%',
                   padding: '12px',
-                  background: '#fff5f5',
-                  border: '1px solid #feb2b2',
+                  background: 'var(--danger-bg)',
+                  border: '1px solid var(--danger-border)',
                   borderRadius: '12px',
                   color: '#e53e3e',
                   fontWeight: 'bold',
@@ -287,10 +287,12 @@ const Home = () => {
                   marginTop: '6px'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#fed7d7';
+                  e.currentTarget.style.background = 'var(--danger-border)';
+                  e.currentTarget.style.color = '#fff';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = '#fff5f5';
+                  e.currentTarget.style.background = 'var(--danger-bg)';
+                  e.currentTarget.style.color = '#e53e3e';
                 }}
               >
                 <Trash2 size={16} color="#e53e3e" />
@@ -308,8 +310,8 @@ const Home = () => {
               onClick={() => navigate('/cooking', { state: { recipe } })}
               style={{
                 padding: '12px 14px',
-                background: '#FFFFFF',
-                border: '1px solid var(--gray-200)',
+                background: 'var(--card-bg)',
+                border: '1px solid var(--border-color)',
                 borderRadius: '16px',
                 cursor: 'pointer',
                 transition: 'all 0.2s',
@@ -361,7 +363,7 @@ const Home = () => {
               {/* Right: Badge */}
               <div style={{ 
                 fontSize: '10.5px', 
-                background: recipe.matchCount > 0 ? '#e0f2ec' : '#f3f4f6', 
+                background: recipe.matchCount > 0 ? 'rgba(55,146,113,0.15)' : 'var(--tab-bg)', 
                 color: recipe.matchCount > 0 ? 'var(--primary-color)' : 'var(--gray-500)', 
                 padding: '4px 8px', 
                 borderRadius: '6px', 

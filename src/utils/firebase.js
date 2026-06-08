@@ -159,9 +159,30 @@ export const updateUserInFirebase = async (id, updates) => {
  */
 export const updateUserHouseholdInFirebase = async (id, householdCode, householdType) => {
   const userDocRef = doc(db, "users", id);
+  const userSnap = await getDoc(userDocRef);
+  let households = [];
+  let currentActiveCode = "";
+  if (userSnap.exists()) {
+    const data = userSnap.data();
+    households = data.households || [];
+    currentActiveCode = data.householdCode || "";
+  }
+  
+  if (householdCode) {
+    const upperCode = householdCode.toUpperCase();
+    if (!households.some(h => h.code === upperCode)) {
+      households.push({ code: upperCode, type: householdType });
+    }
+  } else {
+    if (currentActiveCode) {
+      households = households.filter(h => h.code !== currentActiveCode);
+    }
+  }
+
   await updateDoc(userDocRef, {
     householdCode,
-    householdType
+    householdType,
+    households
   });
 };
 

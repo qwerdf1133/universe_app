@@ -499,8 +499,8 @@ const Shopping = () => {
                       onClick={(e) => handleToggleCheck(item.id, e)}
                       style={{ 
                         padding: '14px 16px', 
-                        background: '#fff', 
-                        border: '1px solid var(--gray-200)', 
+                        background: 'var(--card-bg)', 
+                        border: '1px solid var(--border-color)', 
                         borderRadius: '12px', 
                         display: 'flex', 
                         alignItems: 'center',
@@ -515,7 +515,7 @@ const Shopping = () => {
                         </div>
                         
                         {/* Food Icon Integration */}
-                        <div style={{ fontSize: '24px', background: '#f3f4f6', width: '40px', height: '40px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <div style={{ fontSize: '24px', background: 'var(--tab-bg)', width: '40px', height: '40px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           {getFoodIcon(item.name, item.category)}
                         </div>
 
@@ -531,7 +531,7 @@ const Shopping = () => {
                             >
                               {item.name}
                             </span>
-                            <span style={{ fontSize: '9px', background: '#e0f2ec', color: 'var(--primary-color)', padding: '1px 5px', borderRadius: '4px' }}>
+                            <span style={{ fontSize: '9px', background: 'rgba(55,146,113,0.15)', color: 'var(--primary-color)', padding: '1px 5px', borderRadius: '4px' }}>
                               {item.category}
                             </span>
                           </div>
@@ -556,7 +556,7 @@ const Shopping = () => {
                     fontSize: '15px',
                     fontWeight: 'bold',
                     borderRadius: '12px',
-                    background: shoppingList.some(item => item.checked) ? 'var(--primary-color)' : '#cbd5e1',
+                    background: shoppingList.some(item => item.checked) ? 'var(--primary-color)' : 'var(--gray-300)',
                     color: '#fff',
                     border: 'none',
                     cursor: shoppingList.some(item => item.checked) ? 'pointer' : 'not-allowed',
@@ -599,7 +599,7 @@ const Shopping = () => {
                   const currentNickname = currentUser ? currentUser.nickname : '나';
 
                   return (
-                    <div style={{ background: '#f0fdf4', border: '1px dashed #bbf7d0', padding: '16px', borderRadius: '16px', marginBottom: '16px' }}>
+                    <div style={{ background: 'var(--tab-bg)', border: '1px dashed var(--border-color)', padding: '16px', borderRadius: '16px', marginBottom: '16px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
                         <span style={{ fontSize: '24px' }}>{latestAvatar}</span>
                         <div>
@@ -661,8 +661,8 @@ const Shopping = () => {
                       onClick={(e) => handleToggleRequestCheck(reqItem.id, e)}
                       style={{ 
                         padding: '16px', 
-                        background: '#fff', 
-                        border: '1px solid var(--gray-200)', 
+                        background: 'var(--card-bg)', 
+                        border: '1px solid var(--border-color)', 
                         borderRadius: '12px', 
                         display: 'flex', 
                         justifyContent: 'space-between', 
@@ -678,7 +678,7 @@ const Shopping = () => {
 
                         {/* Requester Profile Badge */}
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', minWidth: '50px', flexShrink: 0 }}>
-                          <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#e0f2ec', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>
+                          <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'var(--tab-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', border: '1px solid var(--border-color)' }}>
                             {reqItem.avatar || '👤'}
                           </div>
                           <span style={{ fontSize: '9px', color: 'var(--gray-500)', fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '50px' }}>
@@ -688,8 +688,8 @@ const Shopping = () => {
                         
                         <div style={{ minWidth: 0, flex: 1 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                            <span style={{ fontWeight: 'bold', fontSize: '15px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{reqItem.name}</span>
-                            <span style={{ fontSize: '10px', background: '#e2e8f0', color: 'var(--gray-600)', padding: '2px 5px', borderRadius: '4px', flexShrink: 0 }}>
+                            <span style={{ fontWeight: 'bold', fontSize: '15px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-black)' }}>{reqItem.name}</span>
+                            <span style={{ fontSize: '10px', background: 'var(--tab-bg)', color: 'var(--gray-600)', padding: '2px 5px', borderRadius: '4px', flexShrink: 0 }}>
                               {reqItem.category}
                             </span>
                           </div>
@@ -707,7 +707,7 @@ const Shopping = () => {
                           handleCopyToMyList(reqItem);
                         }}
                         style={{ 
-                          background: '#e0f2ec', 
+                          background: 'rgba(55,146,113,0.15)', 
                           color: 'var(--primary-color)', 
                           border: 'none', 
                           padding: '8px 12px', 
@@ -750,31 +750,32 @@ const Shopping = () => {
           <div 
             style={{
               position: 'fixed', bottom: 0, left: 0, right: 0,
-              backgroundColor: '#fff', zIndex: 1000,
+              backgroundColor: 'var(--modal-bg)', zIndex: 1000,
               borderTopLeftRadius: '20px', borderTopRightRadius: '20px',
               padding: '24px 20px',
               maxHeight: '90vh',
               animation: 'slideUp 0.3s ease-out',
               boxShadow: '0 -4px 12px rgba(0,0,0,0.1)',
-              overflowY: 'auto'
+              overflowY: 'auto',
+              color: 'var(--text-black)'
             }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Top Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h2 style={{ fontSize: '18px', fontWeight: 'bold' }}>장보기 관리 추가</h2>
+              <h2 style={{ fontSize: '18px', fontWeight: 'bold', color: 'var(--text-black)' }}>장보기 관리 추가</h2>
               <button onClick={handleCloseModal} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
                 <X size={24} color="var(--gray-400)" />
               </button>
             </div>
 
             {/* Modal Internal Tabs */}
-            <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: '10px', padding: '4px', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', background: 'var(--tab-bg)', borderRadius: '10px', padding: '4px', marginBottom: '20px' }}>
               <button 
                 onClick={() => setModalTab('add-item')}
                 style={{
                   flex: 1, padding: '10px', fontSize: '13px', fontWeight: 'bold', border: 'none', borderRadius: '8px',
-                  background: modalTab === 'add-item' ? '#fff' : 'transparent',
+                  background: modalTab === 'add-item' ? 'var(--tab-active-bg)' : 'transparent',
                   color: modalTab === 'add-item' ? 'var(--primary-color)' : 'var(--gray-500)',
                   boxShadow: modalTab === 'add-item' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
                   cursor: 'pointer'
@@ -786,7 +787,7 @@ const Shopping = () => {
                 onClick={() => setModalTab('request-item')}
                 style={{
                   flex: 1, padding: '10px', fontSize: '13px', fontWeight: 'bold', border: 'none', borderRadius: '8px',
-                  background: modalTab === 'request-item' ? '#fff' : 'transparent',
+                  background: modalTab === 'request-item' ? 'var(--tab-active-bg)' : 'transparent',
                   color: modalTab === 'request-item' ? 'var(--primary-color)' : 'var(--gray-500)',
                   boxShadow: modalTab === 'request-item' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
                   cursor: 'pointer'
@@ -871,12 +872,12 @@ const Shopping = () => {
                             ? '2px solid var(--primary-color)' 
                             : isAutoDetected 
                               ? '2px dashed var(--primary-color)' 
-                              : '1px solid var(--gray-200)',
+                              : '1px solid var(--border-color)',
                           background: isSelected 
-                            ? '#e0f2ec' 
+                            ? 'rgba(55,146,113,0.15)' 
                             : isAutoDetected 
-                              ? '#f0fdf4' 
-                              : '#fff'
+                              ? 'var(--tab-bg)' 
+                              : 'var(--input-bg)'
                         }}
                       >
                         <Icon size={24} color={isSelected || isAutoDetected ? 'var(--primary-color)' : 'var(--gray-400)'} style={{ marginBottom: '4px' }} />
@@ -936,7 +937,7 @@ const Shopping = () => {
           animation: 'fadeIn 0.2s ease-out'
         }}>
           <div style={{
-            backgroundColor: '#FFFFFF',
+            backgroundColor: 'var(--modal-bg)',
             width: '90%',
             maxWidth: '420px',
             borderRadius: '20px',
@@ -947,9 +948,10 @@ const Shopping = () => {
             display: 'flex',
             flexDirection: 'column',
             gap: '16px',
-            animation: 'scaleUp 0.2s ease-out'
+            animation: 'scaleUp 0.2s ease-out',
+            color: 'var(--text-black)'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--gray-200)', paddingBottom: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
               <h3 style={{ fontSize: '17px', fontWeight: 'bold', color: 'var(--text-black)', margin: 0 }}>
                 {modalTab === 'add-item' ? '장보기 식재료 추가 확인' : '장보기 요청 확인'}
               </h3>
@@ -966,13 +968,13 @@ const Shopping = () => {
               {confirmList.map((item, idx) => {
                 const icon = getFoodIcon(item.name, item.category);
                 return (
-                  <div key={item.id} style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid var(--gray-200)' }}>
+                  <div key={item.id} style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'var(--card-bg)', padding: '12px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span style={{ fontSize: '24px' }}>{icon}</span>
                         <div>
                           <strong style={{ fontSize: '14px', color: 'var(--text-black)' }}>{item.name}</strong>
-                          <span style={{ fontSize: '10px', background: '#e0f2ec', color: 'var(--primary-color)', padding: '1px 5px', borderRadius: '4px', marginLeft: '6px', fontWeight: 'bold' }}>
+                          <span style={{ fontSize: '10px', background: 'rgba(55,146,113,0.15)', color: 'var(--primary-color)', padding: '1px 5px', borderRadius: '4px', marginLeft: '6px', fontWeight: 'bold' }}>
                             {item.category}
                           </span>
                         </div>
@@ -1022,7 +1024,7 @@ const Shopping = () => {
               <button 
                 onClick={() => setShowConfirmPopup(false)}
                 style={{
-                  flex: 1, padding: '12px', background: '#f1f5f9', border: 'none', borderRadius: '10px',
+                  flex: 1, padding: '12px', background: 'var(--tab-bg)', border: 'none', borderRadius: '10px',
                   fontSize: '13px', fontWeight: 'bold', color: 'var(--gray-500)', cursor: 'pointer'
                 }}
               >

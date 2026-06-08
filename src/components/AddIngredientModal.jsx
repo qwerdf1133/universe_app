@@ -26,6 +26,50 @@ const isIngredientItem = (name) => {
   return !NON_FOOD_KEYWORDS.some(kw => name.includes(kw));
 };
 
+/**
+ * 캔버스 픽셀 데이터를 분석하여 검은 화면인지 확인
+ * 평균 밝기가 임계값(30) 이하이면 검은 화면으로 판단
+ */
+const isBlackImage = (canvas) => {
+  const ctx = canvas.getContext('2d');
+  const { width, height } = canvas;
+  // Sample pixels evenly across the image for performance
+  const sampleStep = Math.max(1, Math.floor(Math.min(width, height) / 50));
+  const imageData = ctx.getImageData(0, 0, width, height);
+  const data = imageData.data;
+  let totalBrightness = 0;
+  let sampleCount = 0;
+  for (let y = 0; y < height; y += sampleStep) {
+    for (let x = 0; x < width; x += sampleStep) {
+      const idx = (y * width + x) * 4;
+      const r = data[idx];
+      const g = data[idx + 1];
+      const b = data[idx + 2];
+      // Perceived brightness formula
+      totalBrightness += (0.299 * r + 0.587 * g + 0.114 * b);
+      sampleCount++;
+    }
+  }
+  const avgBrightness = totalBrightness / sampleCount;
+  return avgBrightness < 30;
+};
+
+/**
+ * OCR 결과 텍스트가 의미 없는 데이터인지 확인
+ * 한글이 거의 없고 임의의 문자열로 구성된 경우 true 반환
+ */
+const isGarbageText = (text) => {
+  if (!text || text.trim().length < 5) return true;
+  const trimmed = text.trim();
+  const koreanChars = (trimmed.match(/[가-힣]/g) || []).length;
+  const totalChars = (trimmed.match(/[a-zA-Z0-9가-힣]/g) || []).length;
+  if (totalChars === 0) return true;
+  const koreanRatio = koreanChars / totalChars;
+  // If less than 5% Korean characters among alphanumeric content, likely garbage
+  if (koreanRatio < 0.05 && koreanChars < 3) return true;
+  return false;
+};
+
 const getFallbackItems = () => [
   { name: '돼지고기 삼겹살', quantity: '600g' },
   { name: '서울우유', quantity: '1L' },
@@ -179,6 +223,10 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
   const [capturedImage, setCapturedImage] = useState(null);
   const [receiptItems, setReceiptItems] = useState([]);
   const [selectedReceiptItems, setSelectedReceiptItems] = useState({});
+
+  // OCR Error Popup State
+  const [showBlackScreenPopup, setShowBlackScreenPopup] = useState(false);
+  const [showGarbageDataPopup, setShowGarbageDataPopup] = useState(false);
 
   useEffect(() => {
     if (isOpen && step === 'camera') {
@@ -498,6 +546,14 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
       canvas.height = video.videoHeight || 480;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      // ① 검은 화면 감지
+      if (isBlackImage(canvas)) {
+        setIsScanning(false);
+        setShowBlackScreenPopup(true);
+        return;
+      }
+
       const dataUrl = canvas.toDataURL('image/jpeg');
       setCapturedImage(dataUrl);
 
@@ -505,7 +561,24 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
         .then(tesseract => {
           tesseract.recognize(dataUrl, 'kor+eng')
             .then(({ data: { text } }) => {
+              // ② 알 수 없는 데이터 감지
+              if (isGarbageText(text)) {
+                setIsScanning(false);
+                setCapturedImage(null);
+                setShowGarbageDataPopup(true);
+                return;
+              }
+
               const parsed = parseOcrText(text);
+
+              // ③ 파싱 후에도 식재료를 전혀 인식하지 못한 경우
+              if (parsed.length === 0 && isGarbageText(text)) {
+                setIsScanning(false);
+                setCapturedImage(null);
+                setShowGarbageDataPopup(true);
+                return;
+              }
+
               setReceiptItems(parsed);
               
               const initialSelect = {};
@@ -1053,7 +1126,7 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
       <div 
         style={{
           position: 'fixed', bottom: 0, left: 0, right: 0,
-          backgroundColor: '#fff', zIndex: 1000,
+          backgroundColor: 'var(--modal-bg)', zIndex: 1000,
           borderTopLeftRadius: '20px', borderTopRightRadius: '20px',
           padding: '24px 20px',
           maxHeight: '90vh',
@@ -1081,7 +1154,7 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
           animation: 'fadeIn 0.2s ease-out'
         }}>
           <div style={{
-            backgroundColor: '#FFFFFF',
+            backgroundColor: 'var(--modal-bg)',
             width: '90%',
             maxWidth: '420px',
             borderRadius: '20px',
@@ -1184,6 +1257,84 @@ const AddIngredientModal = ({ isOpen, onClose, onSave }) => {
                 냉장고에 추가 ({confirmList.length}건)
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 검은 화면 팝업 ── */}
+      {showBlackScreenPopup && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1200,
+          display: 'flex', justifyContent: 'center', alignItems: 'center',
+          animation: 'fadeIn 0.2s ease-out'
+        }}>
+          <div style={{
+            backgroundColor: 'var(--modal-bg)',
+            width: '85%', maxWidth: '360px',
+            borderRadius: '20px', padding: '28px 24px',
+            boxShadow: '0 12px 30px rgba(0,0,0,0.2)',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px',
+            animation: 'scaleUp 0.2s ease-out', textAlign: 'center'
+          }}>
+            <div style={{ fontSize: '52px', lineHeight: 1 }}>📷</div>
+            <h3 style={{ fontSize: '17px', fontWeight: 'bold', color: 'var(--text-black)', margin: 0 }}>
+              이미지를 다시 촬영해주세요.
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--gray-500)', margin: 0, lineHeight: '1.6' }}>
+              화면이 너무 어둡습니다.<br />
+              밝은 환경에서 영수증을 정면으로 촬영해 주세요.
+            </p>
+            <button
+              onClick={() => setShowBlackScreenPopup(false)}
+              style={{
+                width: '100%', padding: '14px', background: 'var(--primary-color)',
+                color: '#fff', border: 'none', borderRadius: '12px',
+                fontSize: '15px', fontWeight: 'bold', cursor: 'pointer',
+                marginTop: '4px'
+              }}
+            >
+              다시 촬영하기
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── 알 수 없는 데이터 팝업 ── */}
+      {showGarbageDataPopup && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1200,
+          display: 'flex', justifyContent: 'center', alignItems: 'center',
+          animation: 'fadeIn 0.2s ease-out'
+        }}>
+          <div style={{
+            backgroundColor: 'var(--modal-bg)',
+            width: '85%', maxWidth: '360px',
+            borderRadius: '20px', padding: '28px 24px',
+            boxShadow: '0 12px 30px rgba(0,0,0,0.2)',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px',
+            animation: 'scaleUp 0.2s ease-out', textAlign: 'center'
+          }}>
+            <div style={{ fontSize: '52px', lineHeight: 1 }}>🔍</div>
+            <h3 style={{ fontSize: '17px', fontWeight: 'bold', color: 'var(--text-black)', margin: 0 }}>
+              인식할 수 없는 데이터입니다.<br />다시 촬영해주세요.
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--gray-500)', margin: 0, lineHeight: '1.6' }}>
+              식재료 정보를 인식하지 못했습니다.<br />
+              영수증이 선명하게 보이도록 조명을 조절하고<br />정면에서 다시 촬영해 주세요.
+            </p>
+            <button
+              onClick={() => setShowGarbageDataPopup(false)}
+              style={{
+                width: '100%', padding: '14px', background: 'var(--primary-color)',
+                color: '#fff', border: 'none', borderRadius: '12px',
+                fontSize: '15px', fontWeight: 'bold', cursor: 'pointer',
+                marginTop: '4px'
+              }}
+            >
+              다시 촬영하기
+            </button>
           </div>
         </div>
       )}
